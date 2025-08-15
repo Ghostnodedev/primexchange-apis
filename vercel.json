@@ -21,6 +21,7 @@
       "src": "/getcrypto",
       "methods": ["GET"],
       "dest": "/src/handler.js"
-    }
+    },
+    { "src": "/test", "methods": ["GET"], "dest": "/src/handler.js" }
   ]
 }

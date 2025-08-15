@@ -47,18 +47,27 @@ export const register = async (req, res) => {
 // src/handler.js
 
 
-export const getcrypto = async (req, res) => {
-  if (req.method === 'GET') {
-    try {
-      const response = await fetch('https://api.coindesk.com/v1/bpi/currentprice.json');
-      const data = await response.json();
-      return res.status(200).json(data);
-    } catch (err) {
-      return res.status(500).json({ error: err.message });
-    }
+// export const getcrypto = async (req, res) => {
+//   if (req.method === 'GET') {
+//     try {
+//       const response = await fetch('https://api.coindesk.com/v1/bpi/currentprice.json');
+//       const data = await response.json();
+//       return res.status(200).json(data);
+//     } catch (err) {
+//       return res.status(500).json({ error: err.message });
+//     }
+//   } else {
+//     res.setHeader('Allow', ['GET']);
+//     return res.status(405).json({ error: `Method ${req.method} Not Allowed` });
+//   }
+// }
+
+export default function test(req, res) {
+  if (req.method === "GET") {
+    return res.status(200).json({ message: "Hello World GET works" });
   } else {
-    res.setHeader('Allow', ['GET']);
-    return res.status(405).json({ error: `Method ${req.method} Not Allowed` });
+    return res.status(405).json({ error: "Method Not Allowed" });
   }
 }
+
 
