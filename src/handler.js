@@ -45,21 +45,23 @@ export const register = async (req, res) => {
 };
 
 export const getcrypto = async (req, res) => {
-  if (req.method !== "GET") {
-    return res.status(405).json({ message: "Method Not Allowed" });
-  }
-  const url = "https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd";
-  try {
-    const response = await fetch(url, {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-      },
-    });
-    const data = await response.json();
-    console.log(data);
-    return res.status(200).json(data);
-  } catch (error) {
-    return res.status(500).json({ message: "Error fetching crypto data" });
+  const { url, method } = req;
+
+  if (url === '/getcrypto' && method === 'GET') {
+    const apiUrl = "https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd";
+
+    try {
+      const response = await fetch(apiUrl, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      const data = await response.json();
+      return res.status(200).json(data);
+    } catch (error) {
+      return res.status(500).json({ message: 'Error fetching crypto data' });
+    }
   }
 };
