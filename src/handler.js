@@ -1,4 +1,4 @@
-export default function login(req, res) {
+export default function handler(req, res) {
   if (req.method === "POST") {
     const { username, password, email, phone } = req.body || {};
 
@@ -7,7 +7,6 @@ export default function login(req, res) {
         .status(400)
         .json({ message: "Missing username, password, email, or phone" });
     }
-
     return res
       .status(200)
       .json({ message: "Login successful", user: { username } });
@@ -16,12 +15,7 @@ export default function login(req, res) {
   res.status(405).json({ message: "Method Not Allowed" });
 }
 
-
-export default async function register(req, res) {
-  if (req.method !== "POST") {
-    return res.status(405).json({ message: "Method Not Allowed" });
-  }
-
+export const register = async (req, res) => {
   const { name, email, username, password, confirmpassword, phone, age } =
     req.body || {};
 
@@ -41,32 +35,37 @@ export default async function register(req, res) {
     return res.status(400).json({ message: "Passwords do not match" });
   }
 
-  return res.status(201).json({
-    message: "User registered successfully",
-    user: { name, email, username, phone, age },
-  });
-}
+  // Simulate user registration logic
+  return res
+    .status(201)
+    .json({
+      message: "User registered successfully",
+      user: { name, email, username, phone, age },
+    });
+};
+
+// src/handler.js
 
 export default async function getcrypto(req, res) {
-  if (req.method !== "GET") {
-    return res.status(405).json({ message: "Method Not Allowed" });
-  }
+  const { method, url } = req;
 
-  const apiUrl =
-    "https://data-api.coindesk.com/index/cc/v1/markets/instruments?market=ccix&instrument_status=ACTIVE";
+  console.log('Incoming:', method, url);
 
-  try {
-    const response = await fetch(apiUrl);
+  if (method === 'GET') {
+    const apiUrl = 'https://data-api.coindesk.com/index/cc/v1/markets/instruments?market=ccix&instrument_status=ACTIVE';
 
-    if (!response.ok) {
+    try {
+      if (!response.ok) {
       throw new Error(`API request failed: ${response.status}`);
     }
-
     const data = await response.json();
+    console.log(data)
     res.status(200).json(data);
-  } catch (error) {
-    console.error("Error fetching crypto data:", error);
-    res.status(500).json({ message: "Failed to fetch crypto data" });
+    } catch (error) {
+      console.error('Error:', error);
+      return res.status(500).json({ message: 'Failed to fetch crypto data' });
+    }
   }
-}
 
+  return res.status(405).json({ message: 'Method Not Allowed' });
+}

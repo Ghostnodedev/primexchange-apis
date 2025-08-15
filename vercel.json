@@ -7,8 +7,20 @@
     }
   ],
   "routes": [
-    { "src": "/getdata", "dest": "/src/login.js" },
-    { "src": "/register", "dest": "/src/register.js" },
-    { "src": "/getcrypto", "dest": "/src/getcrypto.js" }
+    {
+      "src": "/getdata",
+      "methods": ["POST"],
+      "dest": "/src/handler.js"
+    },
+    {
+      "src": "/register",
+      "methods": ["POST"],
+      "dest": "/src/handler.js"
+    },
+    {
+      "src": "/getcrypto",
+      "methods": ["GET"],
+      "dest": "/src/handler.js"
+    }
   ]
 }
