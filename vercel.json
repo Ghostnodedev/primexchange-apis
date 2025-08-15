@@ -16,6 +16,11 @@
       "src": "/register",
       "methods": ["POST"],
       "dest": "/src/handler.js"
+    },
+    {
+      "src": "/getcrypto",
+      "methods": ["GET"],
+      "dest": "/src/handler.js"
     }
   ]
 }

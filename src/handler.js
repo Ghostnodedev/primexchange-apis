@@ -26,3 +26,19 @@ export const register = async(req,res)=>{
   return res.status(201).json({ message: 'User registered successfully', user: { name, email, username, phone, age } });
 }
 
+const getcrypto = async(req , res)=>{
+    const url = "https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd";
+    try {
+        const response = await fetch(url,{
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+        const data = await response.json();
+        console.log(data)
+        return res.status(200).json(data);
+    } catch (error) {
+        return res.status(500).json({ message: 'Error fetching crypto data' });
+    }
+}
