@@ -48,8 +48,8 @@ export const register = async (req, res) => {
 
 
 export const getcrypto = async (req, res) => {
-  if (req.method !== 'GET') {
-    return res.status(405).json({ message: 'Method Not Allowed' });
+  if (req.method ==='GET') {
+    return res.status(405).json({ message: 'yes' });
   }
 
   // const apiUrl = 'https://data-api.coindesk.com/index/cc/v1/markets/instruments?market=ccix&instrument_status=ACTIVE';
