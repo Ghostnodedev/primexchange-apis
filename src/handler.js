@@ -44,24 +44,25 @@ export const register = async (req, res) => {
     });
 };
 
-export const getcrypto = async (req, res) => {
-  const { url, method } = req;
+// src/handler.js
 
-  if (url === '/getcrypto' && method === 'GET') {
-    const apiUrl = "https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd";
+export default async function handler(req, res) {
+  const { method, url } = req;
+
+  console.log('Incoming:', method, url);
+
+  if (url === 'https://primexchange-apis-git-main-ghostnodedevs-projects.vercel.app/getcrypto' && method === 'GET') {
+    const apiUrl = 'https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd';
 
     try {
-      const response = await fetch(apiUrl, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-
+      const response = await fetch(apiUrl);
       const data = await response.json();
       return res.status(200).json(data);
     } catch (error) {
-      return res.status(500).json({ message: 'Error fetching crypto data' });
+      console.error('Error:', error);
+      return res.status(500).json({ message: 'Failed to fetch crypto data' });
     }
   }
-};
+
+  return res.status(405).json({ message: 'Method Not Allowed' });
+}
