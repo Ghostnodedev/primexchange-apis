@@ -62,7 +62,7 @@ export const register = async (req, res) => {
 //   }
 // }
 
-export default function test(req, res) {
+export function test(req, res) {
   if (req.method === "GET") {
     return res.status(200).json({ message: "Hello World GET works" });
   } else {
