@@ -7,9 +7,9 @@
     }
   ],
   "routes": [
-    { "src": "/login", "dest": "/src/main.js" },
-    { "src": "/register", "dest": "/src/main.js" },
-    { "src": "/getcrypto", "dest": "/src/main.js" },
-    { "src": "/test", "dest": "/src/main.js" }
+    { "src": "/login", "dest": "/src/handler.js" },
+    { "src": "/register", "dest": "/src/handler.js" },
+    { "src": "/getcrypto", "dest": "/src/handler.js" },
+    { "src": "/test", "dest": "/src/handler.js" }
   ]
 }
