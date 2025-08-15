@@ -1,21 +1,10 @@
 {
   "version": 2,
-  "builds": [
-    {
-      "src": "api/handler.js",
-      "use": "@vercel/node"
-    }
-  ],
   "routes": [
-    {
-      "src": "/getempdata",
-      "methods": ["GET"],
-      "dest": "/api/handler.js"
-    },
     {
       "src": "/getlogin",
       "methods": ["POST"],
-      "dest": "/api/handler.js"
+      "dest": "/api/login.js"
     }
   ]
 }
