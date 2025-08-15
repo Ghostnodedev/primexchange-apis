@@ -7,20 +7,9 @@
     }
   ],
   "routes": [
-    {
-      "src": "/getdata",
-      "methods": ["POST"],
-      "dest": "/src/handler.js"
-    },
-    {
-      "src": "/register",
-      "methods": ["POST"],
-      "dest": "/src/handler.js"
-    },
-    {
-      "src": "/getcrypto",
-      "dest": "/src/handler.js"
-    },
-    { "src": "/test", "methods": ["GET"], "dest": "/src/handler.js" }
+    { "src": "/login", "dest": "/api/main.js" },
+    { "src": "/register", "dest": "/api/main.js" },
+    { "src": "/getcrypto", "dest": "/api/main.js" },
+    { "src": "/test", "dest": "/api/main.js" }
   ]
 }
