@@ -11,6 +11,11 @@
       "src": "/getdata",
       "methods": ["POST"],
       "dest": "/src/handler.js"
+    },
+    {
+      "src": "/register",
+      "methods": ["POST"],
+      "dest": "/src/handler.js"
     }
   ]
 }
