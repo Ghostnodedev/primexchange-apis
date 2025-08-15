@@ -1,6 +1,15 @@
 export default async function handler(req, res) {
   const { url, method } = req;
 
+  // CORS headers
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+  if (method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+
   // Handle GET /getempdata
   if (url === '/getempdata' && method === 'GET') {
     return res.status(200).json({ message: 'Employee data response' });
@@ -9,7 +18,6 @@ export default async function handler(req, res) {
   // Handle POST /getlogin
   if (url === '/getlogin' && method === 'POST') {
     try {
-      // Parse JSON body
       const buffers = [];
       for await (const chunk of req) {
         buffers.push(chunk);
@@ -26,12 +34,11 @@ export default async function handler(req, res) {
         message: 'Login successful',
         user: { username }
       });
-
     } catch (err) {
-      return res.status(400).json({ message: 'Invalid JSON body', error: err.message });
+      return res.status(500).json({ message: 'Error parsing request body', error: err.message });
     }
   }
 
-  // If no match
-  return res.status(404).json({ message: 'Not Found' });
+  // Default case
+  return res.status(404).json({ message: 'Route not found' });
 }
