@@ -48,7 +48,7 @@ export const register = async (req, res) => {
 
 
 export const getcrypto = async (req, res) => {
-if (req.method === 'GET') {
+if (req.url === '/getcrypto' && req.method === 'GET') {
     try {
       const response = await fetch('https://api.coindesk.com/v1/bpi/currentprice.json');
       const data = await response.json();
