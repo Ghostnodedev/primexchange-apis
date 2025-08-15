@@ -47,23 +47,19 @@ export const register = async (req, res) => {
 // src/handler.js
 
 
-async function fetchCryptoData() {
-  const apiUrl =
-    'https://data-api.coindesk.com/index/cc/v1/markets/instruments?market=ccix&instrument_status=ACTIVE';
-  const response = await fetch(apiUrl);
-  if (!response.ok) throw new Error(`API request failed: ${response.status}`);
-  return response.json();
-}
-
-export async function getcrypto(req, res) {
+module.exports.getcrypto = async (req, res) => {
   if (req.method !== 'GET') {
     return res.status(405).json({ message: 'Method Not Allowed' });
   }
 
+  const apiUrl = 'https://data-api.coindesk.com/index/cc/v1/markets/instruments?market=ccix&instrument_status=ACTIVE';
+
   try {
-    const data = await fetchCryptoData();
-    return res.status(200).json(data);
+    const response = await fetch(apiUrl);
+    const data = await response.json();
+    res.status(200).json(data);
   } catch (error) {
-    return res.status(500).json({ message: 'Failed to fetch crypto data' });
+    res.status(500).json({ message: 'Error fetching crypto data' });
   }
-}
+};
+
