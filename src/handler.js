@@ -1,3 +1,5 @@
+const fetch = require('node-fetch');
+
 export default function handler(req, res) {
   if (req.method === "POST") {
     const { username, password, email, phone } = req.body || {};
