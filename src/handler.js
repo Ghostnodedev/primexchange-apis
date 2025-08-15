@@ -26,7 +26,7 @@ export const register = async(req,res)=>{
   return res.status(201).json({ message: 'User registered successfully', user: { name, email, username, phone, age } });
 }
 
-const getcrypto = async(req , res)=>{
+export const getcrypto = async(req , res)=>{
     const url = "https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd";
     try {
         const response = await fetch(url,{
@@ -42,3 +42,4 @@ const getcrypto = async(req , res)=>{
         return res.status(500).json({ message: 'Error fetching crypto data' });
     }
 }
+e
