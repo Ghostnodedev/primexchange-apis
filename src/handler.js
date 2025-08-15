@@ -51,8 +51,8 @@ export default async function handler(req, res) {
 
   console.log('Incoming:', method, url);
 
-  if (url === 'https://primexchange-apis-git-main-ghostnodedevs-projects.vercel.app/getcrypto' && method === 'GET') {
-    const apiUrl = 'https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd';
+  if (method === 'GET') {
+    const apiUrl = 'https://data-api.coindesk.com/index/cc/v1/markets/instruments?market=ccix&instrument_status=ACTIVE';
 
     try {
       const response = await fetch(apiUrl);
