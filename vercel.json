@@ -10,12 +10,12 @@
     {
       "src": "/getempdata",
       "methods": ["GET"],
-      "dest": "/src/handler.js"
+      "dest": "/api/handler.js"
     },
     {
       "src": "/getlogin",
       "methods": ["POST"],
-      "dest": "/src/handler.js"
+      "dest": "/api/handler.js"
     }
   ]
 }
