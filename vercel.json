@@ -7,9 +7,9 @@
     }
   ],
   "routes": [
-    { "src": "/login", "dest": "/api/main.js" },
-    { "src": "/register", "dest": "/api/main.js" },
-    { "src": "/getcrypto", "dest": "/api/main.js" },
-    { "src": "/test", "dest": "/api/main.js" }
+    { "src": "/login", "dest": "/src/main.js" },
+    { "src": "/register", "dest": "/src/main.js" },
+    { "src": "/getcrypto", "dest": "/src/main.js" },
+    { "src": "/test", "dest": "/src/main.js" }
   ]
 }
