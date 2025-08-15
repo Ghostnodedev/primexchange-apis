@@ -7,8 +7,8 @@
     }
   ],
   "routes": [
-    { "src": "/getdata", "dest": "/api/login.js" },
-    { "src": "/register", "dest": "/api/register.js" },
-    { "src": "/getcrypto", "dest": "/api/getcrypto.js" }
+    { "src": "/getdata", "dest": "/src/login.js" },
+    { "src": "/register", "dest": "/src/register.js" },
+    { "src": "/getcrypto", "dest": "/src/getcrypto.js" }
   ]
 }
