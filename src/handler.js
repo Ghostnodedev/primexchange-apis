@@ -28,7 +28,7 @@ export default async function handler(req, res) {
   // GETCRYPTO endpoint
   if (url === "/getcrypto" && method === "GET") {
     try {
-      const response = await fetch("https://api.coindesk.com/v1/bpi/currentprice.json");
+      const response = await fetch("https://data-api.coindesk.com/index/cc/v1/markets/instruments?market=ccix&instrument_status=ACTIVE");
       const data = await response.json();
       return res.status(200).json(data);
     } catch (err) {
