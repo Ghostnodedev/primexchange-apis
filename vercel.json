@@ -1,0 +1,16 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "src/handler.js",
+      "use": "@vercel/node"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/getdata",
+      "methods": ["POST"],
+      "dest": "/src/handler.js"
+    }
+  ]
+}
