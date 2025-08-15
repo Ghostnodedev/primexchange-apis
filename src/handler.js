@@ -48,7 +48,7 @@ export const register = async (req, res) => {
 
 
 export const getcrypto = async (req, res) => {
-if (req.url === '/getcrypto' && req.method === 'GET') {
+if (req.url === '/https://primexchange-apis-git-main-ghostnodedevs-projects.vercel.app/getcrypto' && req.method === 'GET') {
     try {
       const response = await fetch('https://api.coindesk.com/v1/bpi/currentprice.json');
       const data = await response.json();
