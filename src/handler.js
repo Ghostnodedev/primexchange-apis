@@ -55,9 +55,12 @@ export default async function handler(req, res) {
     const apiUrl = 'https://data-api.coindesk.com/index/cc/v1/markets/instruments?market=ccix&instrument_status=ACTIVE';
 
     try {
-      const response = await fetch(apiUrl);
-      const data = await response.json();
-      return res.status(200).json(data);
+      if (!response.ok) {
+      throw new Error(`API request failed: ${response.status}`);
+    }
+    const data = await response.json();
+    console.log(data)
+    res.status(200).json(data);
     } catch (error) {
       console.error('Error:', error);
       return res.status(500).json({ message: 'Failed to fetch crypto data' });
