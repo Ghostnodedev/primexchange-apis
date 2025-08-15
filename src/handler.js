@@ -48,19 +48,17 @@ export const register = async (req, res) => {
 
 
 export const getcrypto = async (req, res) => {
-  if (req.method ==='GET') {
-    return res.status(405).json({ message: 'yes' });
+  if (req.method === 'GET') {
+    try {
+      const response = await fetch('https://api.coindesk.com/v1/bpi/currentprice.json');
+      const data = await response.json();
+      return res.status(200).json(data);
+    } catch (err) {
+      return res.status(500).json({ error: err.message });
+    }
+  } else {
+    res.setHeader('Allow', ['GET']);
+    return res.status(405).json({ error: `Method ${req.method} Not Allowed` });
   }
-
-  // const apiUrl = 'https://data-api.coindesk.com/index/cc/v1/markets/instruments?market=ccix&instrument_status=ACTIVE';
-
-  const apiUrl = "https://dummyjson.com/products"
-  try {
-    const response = await fetch(apiUrl);
-    const data = await response.json();
-    res.status(200).json(data);
-  } catch (error) {
-    res.status(500).json({ message: 'Error fetching crypto data' });
-  }
-};
+}
 
