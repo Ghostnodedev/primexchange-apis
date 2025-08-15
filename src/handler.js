@@ -52,8 +52,9 @@ export const getcrypto = async (req, res) => {
     return res.status(405).json({ message: 'Method Not Allowed' });
   }
 
-  const apiUrl = 'https://data-api.coindesk.com/index/cc/v1/markets/instruments?market=ccix&instrument_status=ACTIVE';
+  // const apiUrl = 'https://data-api.coindesk.com/index/cc/v1/markets/instruments?market=ccix&instrument_status=ACTIVE';
 
+  const apiUrl = "https://dummyjson.com/products"
   try {
     const response = await fetch(apiUrl);
     const data = await response.json();
