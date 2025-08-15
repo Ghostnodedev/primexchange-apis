@@ -47,7 +47,7 @@ export const register = async (req, res) => {
 // src/handler.js
 
 
-export async function handler(req, res) {
+export async function getcrypto(req, res) {
   const { method, url } = req;
 
   console.log('Incoming:', method, url);
