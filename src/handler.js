@@ -47,7 +47,7 @@ export const register = async (req, res) => {
 // src/handler.js
 
 
-module.exports.getcrypto = async (req, res) => {
+export const getcrypto = async (req, res) => {
   if (req.method !== 'GET') {
     return res.status(405).json({ message: 'Method Not Allowed' });
   }
