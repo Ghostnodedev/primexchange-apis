@@ -51,9 +51,9 @@ export async function getcrypto(req, res) {
   const { method, url } = req;
   console.log('Incoming:', method, url);
 
-  if (method !== 'GET') {
-    return res.status(405).json({ message: 'Method Not Allowed' });
-  }
+  // if (method !== 'GET') {
+  //   return res.status(405).json({ message: 'Method Not Allowed' });
+  // }
 
   const apiUrl = 'https://data-api.coindesk.com/index/cc/v1/markets/instruments?market=ccix&instrument_status=ACTIVE';
 
