@@ -3,7 +3,6 @@
 export default async function handler(req, res) {
   const { method, url } = req;
 
-  // CORS headers
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
@@ -13,7 +12,6 @@ export default async function handler(req, res) {
     return res.status(200).end();
   }
 
-  // Manual body parsing for POST (because Vercel Node functions don't auto-parse)
   if (method === "POST") {
     try {
       const buffers = [];
@@ -27,15 +25,17 @@ export default async function handler(req, res) {
     }
   }
 
-  // Route handling
   const pathname = url.split("?")[0]; // strip query params
 
-  // LOGIN
+  const data = []
+
   if (pathname === "/login" && method === "POST") {
     const { username, password, email, phone } = req.body || {};
     if (!username || !password || !email || !phone) {
       return res.status(400).json({ message: "Missing fields" });
     }
+
+    data.push({ username, email, phone });
     return res.status(200).json({ message: "Login successful", user: { username } });
   }
 
