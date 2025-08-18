@@ -1,26 +1,12 @@
 {
   "version": 2,
   "builds": [
-    {
-      "src": "src/handler.js",
-      "use": "@vercel/node"
-    }
+    { "src": "src/handler.js", "use": "@vercel/node" }
   ],
   "routes": [
-    {
-      "src": "/(login|register|getcrypto|test)",
-      "methods": ["GET", "POST", "OPTIONS"],
-      "dest": "/src/handler.js"
-    }
-  ],
-  "headers": [
-    {
-      "source": "/(login|register|getcrypto|test)",
-      "headers": [
-        { "key": "Access-Control-Allow-Origin", "value": "*" },
-        { "key": "Access-Control-Allow-Methods", "value": "GET,POST,OPTIONS" },
-        { "key": "Access-Control-Allow-Headers", "value": "Content-Type" }
-      ]
-    }
+    { "src": "/register", "methods": ["GET", "POST", "OPTIONS"], "dest": "/src/handler.js" },
+    { "src": "/login", "methods": ["GET", "POST", "OPTIONS"], "dest": "/src/handler.js" },
+    { "src": "/getcrypto", "methods": ["GET", "OPTIONS"], "dest": "/src/handler.js" },
+    { "src": "/test", "methods": ["GET", "OPTIONS"], "dest": "/src/handler.js" }
   ]
 }
