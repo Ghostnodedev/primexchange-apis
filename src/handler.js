@@ -1,23 +1,37 @@
-export default function handler(req, res) {
+export default async function handler(req, res) {
+  const { url, method } = req;
+
+  // CORS headers
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
-  if (req.method === "OPTIONS") {
+  // Handle preflight
+  if (method === "OPTIONS") {
     return res.status(200).end();
   }
 
-  if (req.method === "POST") {
+  // Parse body for POST requests
+  if (method === "POST") {
+    const buffers = [];
+    for await (const chunk of req) {
+      buffers.push(chunk);
+    }
+    try {
+      req.body = JSON.parse(Buffer.concat(buffers).toString());
+    } catch (e) {
+      return res.status(400).json({ message: "Invalid JSON" });
+    }
+  }
+
+  // LOGIN
+  if (url.includes("/login") && method === "POST") {
     const { username, password, email, phone } = req.body || {};
     if (!username || !password || !email || !phone) {
       return res.status(400).json({ message: "Missing fields" });
     }
     return res.status(200).json({ message: "Login successful", user: { username } });
   }
-
-  return res.status(405).json({ message: "Method not allowed" });
-}
-
 
   // REGISTER
   if (url.includes("/register") && method === "POST") {
@@ -49,4 +63,4 @@ export default function handler(req, res) {
 
   // 404
   return res.status(404).json({ message: "Not Found" });
-
+}
