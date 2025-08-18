@@ -1,11 +1,17 @@
 {
   "version": 2,
-  "builds": [{ "src": "src/handler.js", "use": "@vercel/node" }],
+  "builds": [
+    {
+      "src": "src/handler.js",
+      "use": "@vercel/node"
+    }
+  ],
   "routes": [
-    { "src": "/login", "dest": "/src/handler.js" },
-    { "src": "/register", "dest": "/src/handler.js" },
-    { "src": "/getcrypto", "dest": "/src/handler.js" },
-    { "src": "/test", "dest": "/src/handler.js" }
+    {
+      "src": "/(login|register|getcrypto|test)",
+      "methods": ["GET", "POST", "OPTIONS"],
+      "dest": "/src/handler.js"
+    }
   ],
   "headers": [
     {

@@ -1,83 +1,69 @@
 // src/handler.js
 
-// Global storage for testing only (not persistent)
-let regdata = [];
+const users = []; // In-memory storage (use DB in real apps)
 
-// Utility function to send JSON with CORS headers
-function send(res, statusCode, body) {
+function send(res, status, body) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
-  res.status(statusCode).json(body);
+  res.status(status).json(body);
 }
 
 export default async function handler(req, res) {
   const { method, url } = req;
-  const pathname = url.split("?")[0]; // Remove query string
+  const pathname = url.split("?")[0];
 
-  // Handle preflight CORS request
+  // Preflight CORS request
   if (method === "OPTIONS") {
     return send(res, 200, {});
   }
 
-  // Parse POST body
+  // Parse body for POST
   if (method === "POST") {
     try {
-      const buffers = [];
-      for await (const chunk of req) {
-        buffers.push(chunk);
-      }
-      const rawBody = Buffer.concat(buffers).toString();
-      req.body = JSON.parse(rawBody);
-    } catch (err) {
-      return send(res, 400, { message: "Invalid JSON body" });
+      const chunks = [];
+      for await (const chunk of req) chunks.push(chunk);
+      req.body = JSON.parse(Buffer.concat(chunks).toString());
+    } catch {
+      return send(res, 400, { message: "Invalid JSON" });
     }
   }
 
-  // REGISTER route
+  // REGISTER
   if (pathname === "/register" && method === "POST") {
     const { name, email, username, password, confirmpassword, phone, age } = req.body || {};
-
     if (!name || !email || !username || !password || !confirmpassword || !phone || !age) {
       return send(res, 400, { message: "Missing required fields" });
     }
-
     if (password !== confirmpassword) {
       return send(res, 400, { message: "Passwords do not match" });
     }
 
-    const user = { name, email, username, password, phone, age };
-    regdata.push(user);
-    console.log("Registration:", user);
+    const existing = users.find(u => u.username === username);
+    if (existing) {
+      return send(res, 409, { message: "User already exists" });
+    }
 
-    return send(res, 201, { message: "User registered successfully", user });
+    users.push({ name, email, username, password, phone, age });
+    return send(res, 201, { message: "User registered successfully", user: { name, email, username } });
   }
 
-  // LOGIN route
+  // LOGIN
   if (pathname === "/login" && method === "POST") {
     const { username, password, email, phone } = req.body || {};
-
     if (!username || !password || !email || !phone) {
       return send(res, 400, { message: "Missing fields" });
     }
 
-    const user = regdata.find(
-      (u) =>
-        u.username === username &&
-        u.password === password &&
-        u.email === email &&
-        u.phone === phone
+    const user = users.find(
+      u => u.username === username && u.password === password && u.email === email && u.phone === phone
     );
 
-    if (!user) {
-      return send(res, 401, { message: "Invalid credentials" });
-    }
-
-    console.log("Login:", user);
+    if (!user) return send(res, 401, { message: "Invalid credentials" });
     return send(res, 200, { message: "Login successful", user: { username } });
   }
 
-  // GETCRYPTO route
+  // GETCRYPTO
   if (pathname === "/getcrypto" && method === "GET") {
     try {
       const response = await fetch(
@@ -90,11 +76,10 @@ export default async function handler(req, res) {
     }
   }
 
-  // TEST route
+  // TEST
   if (pathname === "/test" && method === "GET") {
     return send(res, 200, { message: "Hello World GET works" });
   }
 
-  // Catch-all 404
   return send(res, 404, { message: "Route not found" });
 }
