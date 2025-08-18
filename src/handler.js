@@ -11,6 +11,19 @@ export default async function handler(req, res) {
     return res.status(200).end();
   }
 
+  // Parse body for POST requests
+  if (method === "POST") {
+    const buffers = [];
+    for await (const chunk of req) {
+      buffers.push(chunk);
+    }
+    try {
+      req.body = JSON.parse(Buffer.concat(buffers).toString());
+    } catch (e) {
+      return res.status(400).json({ message: "Invalid JSON" });
+    }
+  }
+
   // LOGIN
   if (url.includes("/login") && method === "POST") {
     const { username, password, email, phone } = req.body || {};
