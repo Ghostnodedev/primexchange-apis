@@ -1,31 +1,37 @@
+// src/handler.js
+
 export default async function handler(req, res) {
-  const { url, method } = req;
+  const { method, url } = req;
 
   // CORS headers
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
-  // Handle preflight
+  // Handle preflight request
   if (method === "OPTIONS") {
     return res.status(200).end();
   }
 
-  // Parse body for POST requests
+  // Manual body parsing for POST (because Vercel Node functions don't auto-parse)
   if (method === "POST") {
-    const buffers = [];
-    for await (const chunk of req) {
-      buffers.push(chunk);
-    }
     try {
-      req.body = JSON.parse(Buffer.concat(buffers).toString());
-    } catch (e) {
-      return res.status(400).json({ message: "Invalid JSON" });
+      const buffers = [];
+      for await (const chunk of req) {
+        buffers.push(chunk);
+      }
+      const rawBody = Buffer.concat(buffers).toString();
+      req.body = JSON.parse(rawBody);
+    } catch (err) {
+      return res.status(400).json({ message: "Invalid JSON body" });
     }
   }
 
+  // Route handling
+  const pathname = url.split("?")[0]; // strip query params
+
   // LOGIN
-  if (url.includes("/login") && method === "POST") {
+  if (pathname === "/login" && method === "POST") {
     const { username, password, email, phone } = req.body || {};
     if (!username || !password || !email || !phone) {
       return res.status(400).json({ message: "Missing fields" });
@@ -34,7 +40,7 @@ export default async function handler(req, res) {
   }
 
   // REGISTER
-  if (url.includes("/register") && method === "POST") {
+  if (pathname === "/register" && method === "POST") {
     const { name, email, username, password, confirmpassword, phone, age } = req.body || {};
     if (!name || !email || !username || !password || !confirmpassword || !phone || !age) {
       return res.status(400).json({ message: "Missing required fields" });
@@ -46,21 +52,21 @@ export default async function handler(req, res) {
   }
 
   // GETCRYPTO
-  if (url.includes("/getcrypto") && method === "GET") {
+  if (pathname === "/getcrypto" && method === "GET") {
     try {
       const response = await fetch("https://data-api.coindesk.com/index/cc/v1/markets/instruments?market=ccix&instrument_status=ACTIVE");
       const data = await response.json();
       return res.status(200).json(data);
     } catch (err) {
-      return res.status(500).json({ error: err.message });
+      return res.status(500).json({ error: "Failed to fetch crypto data" });
     }
   }
 
   // TEST
-  if (url.includes("/test") && method === "GET") {
+  if (pathname === "/test" && method === "GET") {
     return res.status(200).json({ message: "Hello World GET works" });
   }
 
-  // 404
-  return res.status(404).json({ message: "Not Found" });
+  // Not Found
+  return res.status(404).json({ message: "Route not found" });
 }
