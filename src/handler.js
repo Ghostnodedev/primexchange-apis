@@ -1,17 +1,26 @@
 // src/handler.js
 
-export default async function handler(req, res) {
-  const { method, url } = req;
+// Global storage for testing only (not persistent)
+let regdata = [];
 
+// Utility function to send JSON with CORS headers
+function send(res, statusCode, body) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  res.status(statusCode).json(body);
+}
 
-  // Handle preflight request
+export default async function handler(req, res) {
+  const { method, url } = req;
+  const pathname = url.split("?")[0]; // Remove query string
+
+  // Handle preflight CORS request
   if (method === "OPTIONS") {
-    return res.status(200).end();
+    return send(res, 200, {});
   }
 
+  // Parse POST body
   if (method === "POST") {
     try {
       const buffers = [];
@@ -21,62 +30,71 @@ export default async function handler(req, res) {
       const rawBody = Buffer.concat(buffers).toString();
       req.body = JSON.parse(rawBody);
     } catch (err) {
-      return res.status(400).json({ message: "Invalid JSON body" });
+      return send(res, 400, { message: "Invalid JSON body" });
     }
   }
 
-  const pathname = url.split("?")[0]; // strip query params
-
-    // REGISTER
-  const regdata = []
+  // REGISTER route
   if (pathname === "/register" && method === "POST") {
-    const { name, email, username, password, confirmpassword, phone } = req.body || {};
+    const { name, email, username, password, confirmpassword, phone, age } = req.body || {};
+
     if (!name || !email || !username || !password || !confirmpassword || !phone || !age) {
-      return res.status(400).json({ message: "Missing required fields" });
+      return send(res, 400, { message: "Missing required fields" });
     }
+
     if (password !== confirmpassword) {
-      return res.status(400).json({ message: "Passwords do not match" });
+      return send(res, 400, { message: "Passwords do not match" });
     }
-    regdata.push({ name, email, username, phone });
-    console.log("Registration data:", regdata);
-    return res.status(201).json({ message: "User registered successfully", user: { name, email, username, phone, age } });
+
+    const user = { name, email, username, password, phone, age };
+    regdata.push(user);
+    console.log("Registration:", user);
+
+    return send(res, 201, { message: "User registered successfully", user });
   }
 
-  const data = []
+  // LOGIN route
   if (pathname === "/login" && method === "POST") {
     const { username, password, email, phone } = req.body || {};
+
     if (!username || !password || !email || !phone) {
-      return res.status(400).json({ message: "Missing fields" });
+      return send(res, 400, { message: "Missing fields" });
     }
 
-    const find = regdata.find(user => user.username === username && user.password === password && user.email === email && user.phone === phone);
-    if (!find) {
-      return res.status(401).json({ message: "Invalid credentials" });
+    const user = regdata.find(
+      (u) =>
+        u.username === username &&
+        u.password === password &&
+        u.email === email &&
+        u.phone === phone
+    );
+
+    if (!user) {
+      return send(res, 401, { message: "Invalid credentials" });
     }
 
-    data.push({ username, email, phone });
-    console.log(data)
-    return res.status(200).json({ message: "Login successful", user: { username } });
+    console.log("Login:", user);
+    return send(res, 200, { message: "Login successful", user: { username } });
   }
 
-
-
-  // GETCRYPTO
+  // GETCRYPTO route
   if (pathname === "/getcrypto" && method === "GET") {
     try {
-      const response = await fetch("https://data-api.coindesk.com/index/cc/v1/markets/instruments?market=ccix&instrument_status=ACTIVE");
+      const response = await fetch(
+        "https://data-api.coindesk.com/index/cc/v1/markets/instruments?market=ccix&instrument_status=ACTIVE"
+      );
       const data = await response.json();
-      return res.status(200).json(data);
+      return send(res, 200, data);
     } catch (err) {
-      return res.status(500).json({ error: "Failed to fetch crypto data" });
+      return send(res, 500, { error: "Failed to fetch crypto data" });
     }
   }
 
-  // TEST
+  // TEST route
   if (pathname === "/test" && method === "GET") {
-    return res.status(200).json({ message: "Hello World GET works" });
+    return send(res, 200, { message: "Hello World GET works" });
   }
 
-  // Not Found
-  return res.status(404).json({ message: "Route not found" });
+  // Catch-all 404
+  return send(res, 404, { message: "Route not found" });
 }
