@@ -11,6 +11,8 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "@prisma/client": "^6.14.0",
+    "bcrypt": "^6.0.0",
     "micro-cors": "^0.1.1",
     "uuid": "^11.1.0"
   },
