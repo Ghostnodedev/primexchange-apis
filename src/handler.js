@@ -72,8 +72,8 @@ const handler = async (req, res) => {
 
     logindata.push({ username, password, email, phone });
 
-    const token = jwt.sign({ username }, process.env.JWT_SECRET);
-    console.log('Login successful for user:', token);
+    // // const token = jwt.sign({ username }, process.env.JWT_SECRET);
+    // console.log('Login successful for user:', token);
 
     return res.status(200).json({ message: 'Login successful', user: { username }, token });
   }
