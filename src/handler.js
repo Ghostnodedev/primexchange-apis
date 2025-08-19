@@ -44,11 +44,10 @@ const handler = async (req, res) => {
     if (password !== confirmpassword) {
       return res.status(400).json({ message: 'Passwords do not match' });
     }
-    const token = uuidv4();
     regdata.push({ name, email, username, password, phone, age });
     console.log('Registered users:', regdata);
 
-    return res.status(201).json({ message: 'User registered successfully', user: { username, email }, token });
+    return res.status(201).json({ message: 'User registered successfully', user: { username, email } });
   }
 
   // LOGIN route
@@ -71,12 +70,14 @@ const handler = async (req, res) => {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
+    const token = uuidv4();
+
     logindata.push({ username, password, email, phone });
 
     // // const token = jwt.sign({ username }, process.env.JWT_SECRET);
     // console.log('Login successful for user:', token);
 
-    return res.status(200).json({ message: 'Login successful', user: { username } });
+    return res.status(200).json({ message: 'Login successful', user: { username }, token });
   }
 
 
