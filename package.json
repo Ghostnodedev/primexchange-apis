@@ -11,6 +11,7 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
-    "micro-cors": "^0.1.1"
+    "micro-cors": "^0.1.1",
+    "uuid": "^11.1.0"
   }
 }

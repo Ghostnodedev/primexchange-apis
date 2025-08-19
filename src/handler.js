@@ -1,5 +1,6 @@
 // src/handler.js
 import microCors from 'micro-cors';
+import { v4 as uuidv4 } from 'uuid';
 
 const cors = microCors({
   origin: '*',
@@ -43,11 +44,11 @@ const handler = async (req, res) => {
     if (password !== confirmpassword) {
       return res.status(400).json({ message: 'Passwords do not match' });
     }
-
+    const token = uuidv4();
     regdata.push({ name, email, username, password, phone, age });
     console.log('Registered users:', regdata);
 
-    return res.status(201).json({ message: 'User registered successfully', user: { username, email } });
+    return res.status(201).json({ message: 'User registered successfully', user: { username, email }, token });
   }
 
   // LOGIN route
