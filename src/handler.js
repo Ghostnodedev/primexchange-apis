@@ -89,7 +89,6 @@ const handler = async (req, res) => {
       return res.status(500).json({ message: 'Failed to fetch crypto data' });
     }
   }
+}
 
-
-
-export default cors(handler);
+export default cors(handler)
