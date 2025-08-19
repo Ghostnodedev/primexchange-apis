@@ -78,22 +78,6 @@ const handler = async (req, res) => {
     return res.status(200).json({ message: 'Login successful', user: { username }, token });
   }
 
-  // get login data
-  if (pathname === '/getlogin' && method === 'GET') {
-    const { username } = req.query;
-
-    if (!username) {
-      return res.status(400).json({ message: 'Missing username' });
-    }
-
-    const user = regdata.find(user => user.username === username);
-    if (!user) {
-      return res.status(404).json({ message: 'User not found' });
-    }
-
-    return res.status(200).json({ message: 'User found', user });
-  }
-}
 
   // GETCRYPTO route
   if (pathname === '/getcrypto' && method === 'GET') {
