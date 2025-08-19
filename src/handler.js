@@ -1,7 +1,7 @@
 // src/handler.js
 import microCors from "micro-cors";
 import { v4 as uuidv4 } from "uuid";
-import { db } from "./libdb";
+import { db } from "./libdb.js";
 
 // ✅ Setup tables if they don’t exist
 async function setupTables() {
