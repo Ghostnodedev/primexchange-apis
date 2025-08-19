@@ -7,7 +7,7 @@ const cors = microCors({
   allowHeaders: ['Content-Type'],
 });
 
-let regdata = []; // Stores registered users in memory (for testing/demo)
+let regdata = []; 
 
 const handler = async (req, res) => {
   const { method, url } = req;
@@ -51,6 +51,7 @@ const handler = async (req, res) => {
   }
 
   // LOGIN route
+  let logindata = []
   if (pathname === '/login' && method === 'POST') {
     const { username, password, email, phone } = req.body || {};
 
@@ -69,8 +70,30 @@ const handler = async (req, res) => {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
-    return res.status(200).json({ message: 'Login successful', user: { username } });
+    logindata.push({ username, password, email, phone });
+
+    const token = jwt.sign({ username }, process.env.JWT_SECRET);
+    console.log('Login successful for user:', token);
+
+    return res.status(200).json({ message: 'Login successful', user: { username }, token });
   }
+
+  // get login data
+  if (pathname === '/getlogin' && method === 'GET') {
+    const { username } = req.query;
+
+    if (!username) {
+      return res.status(400).json({ message: 'Missing username' });
+    }
+
+    const user = regdata.find(user => user.username === username);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    return res.status(200).json({ message: 'User found', user });
+  }
+}
 
   // GETCRYPTO route
   if (pathname === '/getcrypto' && method === 'GET') {
@@ -83,13 +106,6 @@ const handler = async (req, res) => {
     }
   }
 
-  // TEST route
-  if (pathname === '/test' && method === 'GET') {
-    return res.status(200).json({ message: 'Hello World GET works' });
-  }
 
-  // 404
-  return res.status(404).json({ message: 'Route not found' });
-};
 
 export default cors(handler);

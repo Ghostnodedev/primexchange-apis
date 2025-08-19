@@ -6,6 +6,7 @@
   "routes": [
     { "src": "/register", "methods": ["GET", "POST", "OPTIONS"], "dest": "/src/handler.js" },
     { "src": "/login", "methods": ["GET", "POST", "OPTIONS"], "dest": "/src/handler.js" },
+    { "src": "/login", "methods": ["GET", "POST", "OPTIONS"], "dest": "/src/handler.js" },
     { "src": "/getcrypto", "methods": ["GET", "OPTIONS"], "dest": "/src/handler.js" },
     { "src": "/test", "methods": ["GET", "OPTIONS"], "dest": "/src/handler.js" }
   ]
