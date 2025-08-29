@@ -1,4 +1,3 @@
-// src/handler.js
 import microCors from 'micro-cors';
 import { v4 as uuidv4 } from 'uuid';
 import { db } from './libdb.js';
@@ -40,8 +39,10 @@ async function setupTables() {
 }
 setupTables();
 
+// OTP in-memory store
 const otpStore = new Map();
 
+// Nodemailer transporter
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
@@ -67,13 +68,14 @@ const handler = async (req, res) => {
     }
   }
 
-  // 📌 Register
+  // ✅ Register
   if (pathname === '/register' && method === 'POST') {
     const { name, email, username, password, confirmpassword, phone, age } = req.body || {};
 
     if (!name || !email || !username || !password || !confirmpassword) {
       return res.status(400).json({ message: 'Missing required fields' });
     }
+
     if (password !== confirmpassword) {
       return res.status(400).json({ message: 'Passwords do not match' });
     }
@@ -89,7 +91,7 @@ const handler = async (req, res) => {
     }
   }
 
-  // 📌 Login
+  // ✅ Login
   if (pathname === '/login' && method === 'POST') {
     const { email, password } = req.body || {};
     if (!email || !password) {
@@ -97,12 +99,12 @@ const handler = async (req, res) => {
     }
 
     try {
-      const result = await db.execute(
+      const [rows] = await db.execute(
         `SELECT * FROM register WHERE email = ? AND password = ?`,
         [email, password]
       );
 
-      if (result.rows.length === 0) return res.status(401).json({ message: 'Invalid credentials' });
+      if (!rows || rows.length === 0) return res.status(401).json({ message: 'Invalid credentials' });
 
       const token = uuidv4();
       return res.status(200).json({ message: 'Login successful', user: { email }, token });
@@ -111,7 +113,7 @@ const handler = async (req, res) => {
     }
   }
 
-  // 📌 Crypto Data
+  // ✅ Get Crypto Data
   if (pathname === '/getcrypto' && method === 'GET') {
     try {
       const response = await fetch(
@@ -124,62 +126,56 @@ const handler = async (req, res) => {
     }
   }
 
-  // 📌 Request OTP
+  // ✅ Request OTP (Forgot Password Step 1)
   if (pathname === '/request-otp' && method === 'POST') {
-    const { email } = req.body;
+    const { email } = req.body || {};
 
-    if (!email) return res.status(400).json({ message: 'Email is required' });
+    if (!email) {
+      return res.status(400).json({ message: 'Email is required' });
+    }
 
     try {
-      const result = await db.execute(`SELECT * FROM register WHERE email = ?`, [email]);
-
-      if (result.rows.length === 0) {
+      const [rows] = await db.execute(`SELECT * FROM register WHERE LOWER(email) = LOWER(?)`, [email.trim()]);
+      if (!rows || rows.length === 0) {
         return res.status(404).json({ message: 'Email not registered' });
       }
 
       const otp = Math.floor(100000 + Math.random() * 900000).toString();
-      otpStore.set(email, otp);
+      otpStore.set(email.trim(), otp);
 
-      const mailOptions = {
-        from: {
-          name: process.env.EMAIL_SENDER_NAME || 'App Support',
-          address: process.env.EMAIL_SENDER_ADDRESS,
-        },
-        to: email,
+      await transporter.sendMail({
+        from: `"${process.env.EMAIL_SENDER_NAME}" <${process.env.EMAIL_SENDER_ADDRESS}>`,
+        to: email.trim(),
         subject: 'Your OTP Code',
         text: `Your OTP code is ${otp}. It will expire in 5 minutes.`,
-      };
-
-      await transporter.sendMail(mailOptions);
+      });
 
       return res.status(200).json({ message: 'OTP sent successfully' });
     } catch (err) {
-      console.error('Error sending OTP:', err);
+      console.error('Error sending OTP email:', err);
       return res.status(500).json({ message: 'Failed to send OTP', error: err.message });
     }
   }
 
-  // 📌 Verify OTP
+  // ✅ Verify OTP (Forgot Password Step 2)
   if (pathname === '/verify-otp' && method === 'POST') {
-    const { email, otp } = req.body;
-
+    const { email, otp } = req.body || {};
     if (!email || !otp) {
       return res.status(400).json({ message: 'Email and OTP are required' });
     }
 
-    const validOtp = otpStore.get(email);
+    const validOtp = otpStore.get(email.trim());
     if (validOtp && validOtp === otp) {
-      otpStore.delete(email);
+      otpStore.delete(email.trim());
       return res.status(200).json({ message: 'OTP verified successfully' });
     } else {
       return res.status(400).json({ message: 'Invalid OTP' });
     }
   }
 
-  // 📌 Reset Password
+  // ✅ Reset Password (Forgot Password Step 3)
   if (pathname === '/reset-password' && method === 'POST') {
-    const { email, newPassword } = req.body;
-
+    const { email, newPassword } = req.body || {};
     if (!email || !newPassword) {
       return res.status(400).json({ message: 'Email and new password are required' });
     }
@@ -187,7 +183,7 @@ const handler = async (req, res) => {
     try {
       const result = await db.execute(
         `UPDATE register SET password = ? WHERE email = ?`,
-        [newPassword, email]
+        [newPassword, email.trim()]
       );
 
       if (result.rowsAffected === 0) {
@@ -200,7 +196,7 @@ const handler = async (req, res) => {
     }
   }
 
-  // 📌 Fallback
+  // Fallback
   return res.status(404).json({ message: 'Route not found' });
 };
 
