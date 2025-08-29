@@ -160,7 +160,7 @@ const handler = async (req, res) => {
       otpStore.set(normalizedEmail, otp);
 
       const mailOptions = {
-        from: `"YourAppName" <mailtest122000@gmail.com>`,  // Use your actual email here
+        from: `mailtest122000@gmail.com`,  
         to: normalizedEmail,
         subject: 'Your OTP Code',
         text: `Your OTP code is ${otp}. It will expire in 5 minutes.`,
