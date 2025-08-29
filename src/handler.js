@@ -42,12 +42,12 @@ setupTables();
 // Store OTPs in-memory (For production use persistent store with expiration)
 const otpStore = new Map();
 
-// Setup nodemailer transporter (use your Gmail app password here)
+// Setup nodemailer transporter (update these with your actual email and app password)
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
-    user: 'vaibhavpandey331@gmail.com',     // Your Gmail address
-    pass: 'qpiinpbrbcfsiodu',        // Your Gmail App Password (16 chars)
+    user: 'vaibhavpandey331@gmail.com',     // YOUR email here
+    pass: 'qpii npbr bcfs iodu',       // Your generated Gmail App Password here
   },
 });
 
@@ -156,8 +156,10 @@ const handler = async (req, res) => {
       const otp = Math.floor(100000 + Math.random() * 900000).toString();
       otpStore.set(normalizedEmail, otp);
 
+      console.log(`Storing OTP for ${normalizedEmail}: ${otp}`);
+
       const mailOptions = {
-        from: 'mailtest122000@gmail.com',
+        from: `mailtest122000@gmail.com`,
         to: normalizedEmail,
         subject: 'Your OTP Code',
         text: `Your OTP code is ${otp}. It will expire in 5 minutes.`,
@@ -183,7 +185,9 @@ const handler = async (req, res) => {
     const normalizedEmail = email.toLowerCase();
     const validOtp = otpStore.get(normalizedEmail);
 
-    if (validOtp && validOtp === otp) {
+    console.log(`Verifying OTP for ${normalizedEmail}: sent OTP = "${otp}", stored OTP = "${validOtp}"`);
+
+    if (validOtp && validOtp === otp.trim()) {
       otpStore.delete(normalizedEmail); // Remove OTP after success
       return res.status(200).json({ message: 'OTP verified successfully' });
     } else {
