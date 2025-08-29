@@ -40,6 +40,7 @@ setupTables();
 
 // In-memory store for OTPs — email -> array of OTPs
 const otpStore = new Map();
+const sotp = []
 
 // Setup nodemailer transporter
 const transporter = nodemailer.createTransport({
@@ -156,6 +157,7 @@ const handler = async (req, res) => {
 
       // Generate 6-digit OTP
       const otp = Math.floor(100000 + Math.random() * 900000).toString();
+      sotp.push({ email: normalizedEmail, otp });
 
       // Get current OTP array or empty
       const otpArray = otpStore.get(normalizedEmail) || [];
@@ -187,6 +189,12 @@ const handler = async (req, res) => {
 
     if (!email || !otp) {
       return res.status(400).json({ message: 'Email and OTP are required' });
+    }
+
+    const find = sotp.find(item => item.email === email && item.otp === otp);
+    console.log(find);
+    if(find){
+      console.log(`[OTP VERIFY] Found OTP for ${email}:`, find);
     }
 
     email = email.toLowerCase().trim();
