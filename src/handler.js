@@ -3,7 +3,6 @@ import microCors from 'micro-cors';
 import { v4 as uuidv4 } from 'uuid';
 import { db } from './libdb.js';  // your DB connection here
 import nodemailer from 'nodemailer';
-import fetch from 'node-fetch'; // If your Node.js version < 18
 
 const cors = microCors({
   origin: '*',
@@ -39,10 +38,9 @@ async function setupTables() {
 }
 setupTables();
 
-// In-memory store for OTPs — reset on server restart!
-const otpStore = new Map();
+// In-memory store for OTP arrays per email
+const otpStore = new Map();  // email => [otp1, otp2, ...]
 
-// Setup nodemailer transporter
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
@@ -128,7 +126,7 @@ const handler = async (req, res) => {
       const data = await response.json();
       return res.status(200).json(data);
     } catch (err) {
-      return res.status(500).json({ message: 'Failed to fetch crypto data', error: err.message });
+      return res.status(500).json({ message: 'Failed to fetch crypto data' });
     }
   }
 
@@ -157,14 +155,18 @@ const handler = async (req, res) => {
       // Generate 6-digit OTP
       const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
-      // Store OTP in memory
-      otpStore.set(normalizedEmail, otp);
+      // Get existing OTP array or empty
+      const otpArray = otpStore.get(normalizedEmail) || [];
+
+      // Add new OTP to array
+      otpArray.push(otp);
+      otpStore.set(normalizedEmail, otpArray);
 
       console.log(`Generated OTP for ${normalizedEmail}: ${otp}`);
 
       // Send OTP email
       const mailOptions = {
-        from: 'vaibhavpandey331@gmail.com', // Use your email here consistently
+        from: `mailtest122000@gmail.com`,
         to: normalizedEmail,
         subject: 'Your OTP Code',
         text: `Your OTP code is ${otp}. It will expire in 5 minutes.`,
@@ -190,15 +192,23 @@ const handler = async (req, res) => {
     email = email.toLowerCase().trim();
     otp = otp.toString().trim();
 
-    const validOtp = otpStore.get(email);
+    const otpArray = otpStore.get(email) || [];
 
-    console.log(`Verifying OTP for ${email} - Provided: "${otp}", Stored: "${validOtp}"`);
+    console.log(`Verifying OTP for ${email} - Provided: "${otp}", Stored array: [${otpArray.join(', ')}]`);
 
-    if (validOtp && validOtp === otp) {
-      otpStore.delete(email);
+    const otpIndex = otpArray.indexOf(otp);
+
+    if (otpIndex > -1) {
+      // Remove used OTP from array
+      otpArray.splice(otpIndex, 1);
+      if (otpArray.length === 0) {
+        otpStore.delete(email);
+      } else {
+        otpStore.set(email, otpArray);
+      }
       return res.status(200).json({ message: 'OTP verified successfully' });
     } else {
-      console.warn(`OTP verification failed for ${email}. Provided: "${otp}", Expected: "${validOtp}"`);
+      console.warn(`OTP verification failed for ${email}. Provided: "${otp}", OTPs: [${otpArray.join(', ')}]`);
       return res.status(400).json({ message: 'Invalid OTP' });
     }
   }
@@ -219,7 +229,6 @@ const handler = async (req, res) => {
         [newPassword, normalizedEmail]
       );
 
-      // rowsAffected = SQLite; changes = some drivers; fallback to 0
       const affected = result.rowsAffected || result.changes || 0;
 
       if (affected === 0) {
