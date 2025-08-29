@@ -3,6 +3,7 @@ import microCors from 'micro-cors';
 import { v4 as uuidv4 } from 'uuid';
 import { db } from './libdb.js';  // your DB connection here
 import nodemailer from 'nodemailer';
+import fetch from 'node-fetch'; // If your Node.js version < 18
 
 const cors = microCors({
   origin: '*',
@@ -46,7 +47,7 @@ const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
     user: 'vaibhavpandey331@gmail.com',     // YOUR email here
-    pass: 'qpii npbr bcfs iodu',       // Your generated Gmail App Password here
+    pass: 'qpii npbr bcfs iodu',             // Your Gmail App Password here
   },
 });
 
@@ -127,7 +128,7 @@ const handler = async (req, res) => {
       const data = await response.json();
       return res.status(200).json(data);
     } catch (err) {
-      return res.status(500).json({ message: 'Failed to fetch crypto data' });
+      return res.status(500).json({ message: 'Failed to fetch crypto data', error: err.message });
     }
   }
 
@@ -163,7 +164,7 @@ const handler = async (req, res) => {
 
       // Send OTP email
       const mailOptions = {
-        from: `mailtest122000@gmail.com`,
+        from: 'vaibhavpandey331@gmail.com', // Use your email here consistently
         to: normalizedEmail,
         subject: 'Your OTP Code',
         text: `Your OTP code is ${otp}. It will expire in 5 minutes.`,
@@ -179,29 +180,28 @@ const handler = async (req, res) => {
   }
 
   // Verify OTP
-if (pathname === '/verify-otp' && method === 'POST') {
-  let { email, otp } = req.body || {};
+  if (pathname === '/verify-otp' && method === 'POST') {
+    let { email, otp } = req.body || {};
 
-  if (!email || !otp) {
-    return res.status(400).json({ message: 'Email and OTP are required' });
+    if (!email || !otp) {
+      return res.status(400).json({ message: 'Email and OTP are required' });
+    }
+
+    email = email.toLowerCase().trim();
+    otp = otp.toString().trim();
+
+    const validOtp = otpStore.get(email);
+
+    console.log(`Verifying OTP for ${email} - Provided: "${otp}", Stored: "${validOtp}"`);
+
+    if (validOtp && validOtp === otp) {
+      otpStore.delete(email);
+      return res.status(200).json({ message: 'OTP verified successfully' });
+    } else {
+      console.warn(`OTP verification failed for ${email}. Provided: "${otp}", Expected: "${validOtp}"`);
+      return res.status(400).json({ message: 'Invalid OTP' });
+    }
   }
-
-  email = email.toLowerCase().trim();
-  otp = otp.toString().trim();
-
-  const validOtp = otpStore.get(email);
-
-  console.log(`Verifying OTP for ${email} - Provided: "${otp}", Stored: "${validOtp}"`);
-
-  if (validOtp && validOtp === otp) {
-    otpStore.delete(email);
-    return res.status(200).json({ message: 'OTP verified successfully' });
-  } else {
-    console.warn(`OTP verification failed for ${email}. Provided: "${otp}", Expected: "${validOtp}"`);
-    return res.status(400).json({ message: 'Invalid OTP' });
-  }
-}
-
 
   // Reset password
   if (pathname === '/reset-password' && method === 'POST') {
@@ -219,6 +219,7 @@ if (pathname === '/verify-otp' && method === 'POST') {
         [newPassword, normalizedEmail]
       );
 
+      // rowsAffected = SQLite; changes = some drivers; fallback to 0
       const affected = result.rowsAffected || result.changes || 0;
 
       if (affected === 0) {
