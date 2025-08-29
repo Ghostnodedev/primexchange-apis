@@ -1,7 +1,7 @@
 // src/handler.js
 import microCors from 'micro-cors';
 import { v4 as uuidv4 } from 'uuid';
-import { db } from './libdb.js';
+import { db } from './libdb.js';  // your DB connection here
 import nodemailer from 'nodemailer';
 
 const cors = microCors({
@@ -10,6 +10,7 @@ const cors = microCors({
   allowHeaders: ['Content-Type'],
 });
 
+// Setup your database tables (run once)
 async function setupTables() {
   await db.execute(`
     CREATE TABLE IF NOT EXISTS register (
@@ -35,14 +36,12 @@ async function setupTables() {
 
   console.log('Tables are ready ✅');
 }
-
-// Run setup once
 setupTables();
 
-// Store OTPs in-memory (For production use persistent store with expiration)
+// In-memory store for OTPs — reset on server restart!
 const otpStore = new Map();
 
-// Setup nodemailer transporter (update these with your actual email and app password)
+// Setup nodemailer transporter
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
@@ -57,6 +56,7 @@ const handler = async (req, res) => {
 
   if (method === 'OPTIONS') return res.status(200).end();
 
+  // Parse JSON body if POST
   if (method === 'POST') {
     try {
       const buffers = [];
@@ -68,7 +68,7 @@ const handler = async (req, res) => {
     }
   }
 
-  // /register
+  // Register new user
   if (pathname === '/register' && method === 'POST') {
     const { name, email, username, password, confirmpassword, phone, age } = req.body || {};
 
@@ -80,7 +80,7 @@ const handler = async (req, res) => {
     }
 
     try {
-      const normalizedEmail = email.toLowerCase();
+      const normalizedEmail = email.toLowerCase().trim();
 
       await db.execute(
         `INSERT INTO register (name, email, username, password, phone, age) VALUES (?, ?, ?, ?, ?, ?)`,
@@ -92,7 +92,7 @@ const handler = async (req, res) => {
     }
   }
 
-  // /login
+  // Login user
   if (pathname === '/login' && method === 'POST') {
     const { email, password } = req.body || {};
     if (!email || !password) {
@@ -100,7 +100,7 @@ const handler = async (req, res) => {
     }
 
     try {
-      const normalizedEmail = email.toLowerCase();
+      const normalizedEmail = email.toLowerCase().trim();
 
       const result = await db.execute(
         `SELECT * FROM register WHERE email = ? AND password = ?`,
@@ -118,7 +118,7 @@ const handler = async (req, res) => {
     }
   }
 
-  // /getcrypto
+  // Get Crypto data
   if (pathname === '/getcrypto' && method === 'GET') {
     try {
       const response = await fetch(
@@ -131,7 +131,7 @@ const handler = async (req, res) => {
     }
   }
 
-  // /request-otp
+  // Request OTP
   if (pathname === '/request-otp' && method === 'POST') {
     const { email } = req.body || {};
 
@@ -140,7 +140,7 @@ const handler = async (req, res) => {
     }
 
     try {
-      const normalizedEmail = email.toLowerCase();
+      const normalizedEmail = email.toLowerCase().trim();
 
       const result = await db.execute(
         `SELECT * FROM register WHERE email = ?`,
@@ -153,11 +153,15 @@ const handler = async (req, res) => {
         return res.status(404).json({ message: 'Email not registered' });
       }
 
+      // Generate 6-digit OTP
       const otp = Math.floor(100000 + Math.random() * 900000).toString();
+
+      // Store OTP in memory
       otpStore.set(normalizedEmail, otp);
 
-      console.log(`Storing OTP for ${normalizedEmail}: ${otp}`);
+      console.log(`Generated OTP for ${normalizedEmail}: ${otp}`);
 
+      // Send OTP email
       const mailOptions = {
         from: `mailtest122000@gmail.com`,
         to: normalizedEmail,
@@ -174,28 +178,30 @@ const handler = async (req, res) => {
     }
   }
 
-  // /verify-otp
+  // Verify OTP
   if (pathname === '/verify-otp' && method === 'POST') {
-    const { email, otp } = req.body || {};
+    let { email, otp } = req.body || {};
 
     if (!email || !otp) {
       return res.status(400).json({ message: 'Email and OTP are required' });
     }
 
-    const normalizedEmail = email.toLowerCase();
-    const validOtp = otpStore.get(normalizedEmail);
+    email = email.toLowerCase().trim();
+    otp = otp.toString().trim();
 
-    console.log(`Verifying OTP for ${normalizedEmail}: sent OTP = "${otp}", stored OTP = "${validOtp}"`);
+    const validOtp = otpStore.get(email);
 
-    if (validOtp && validOtp === otp.trim()) {
-      otpStore.delete(normalizedEmail); // Remove OTP after success
+    console.log(`Verifying OTP for ${email}: sent OTP = "${otp}", stored OTP = "${validOtp}"`);
+
+    if (validOtp && validOtp === otp) {
+      otpStore.delete(email); // Remove OTP once verified
       return res.status(200).json({ message: 'OTP verified successfully' });
     } else {
       return res.status(400).json({ message: 'Invalid OTP' });
     }
   }
 
-  // /reset-password
+  // Reset password
   if (pathname === '/reset-password' && method === 'POST') {
     const { email, newPassword } = req.body || {};
 
@@ -204,7 +210,7 @@ const handler = async (req, res) => {
     }
 
     try {
-      const normalizedEmail = email.toLowerCase();
+      const normalizedEmail = email.toLowerCase().trim();
 
       const result = await db.execute(
         `UPDATE register SET password = ? WHERE email = ?`,
@@ -223,7 +229,7 @@ const handler = async (req, res) => {
     }
   }
 
-  // Default 404
+  // Default 404 response for unknown routes
   return res.status(404).json({ message: 'Route not found' });
 };
 
