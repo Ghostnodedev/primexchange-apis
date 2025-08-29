@@ -179,27 +179,29 @@ const handler = async (req, res) => {
   }
 
   // Verify OTP
-  if (pathname === '/verify-otp' && method === 'POST') {
-    let { email, otp } = req.body || {};
+if (pathname === '/verify-otp' && method === 'POST') {
+  let { email, otp } = req.body || {};
 
-    if (!email || !otp) {
-      return res.status(400).json({ message: 'Email and OTP are required' });
-    }
-
-    email = email.toLowerCase().trim();
-    otp = otp.toString().trim();
-
-    const validOtp = otpStore.get(email);
-
-    console.log(`Verifying OTP for ${email}: sent OTP = "${otp}", stored OTP = "${validOtp}"`);
-
-    if (validOtp && validOtp === otp) {
-      otpStore.delete(email); // Remove OTP once verified
-      return res.status(200).json({ message: 'OTP verified successfully' });
-    } else {
-      return res.status(400).json({ message: 'Invalid OTP' });
-    }
+  if (!email || !otp) {
+    return res.status(400).json({ message: 'Email and OTP are required' });
   }
+
+  email = email.toLowerCase().trim();
+  otp = otp.toString().trim();
+
+  const validOtp = otpStore.get(email);
+
+  console.log(`Verifying OTP for ${email} - Provided: "${otp}", Stored: "${validOtp}"`);
+
+  if (validOtp && validOtp === otp) {
+    otpStore.delete(email);
+    return res.status(200).json({ message: 'OTP verified successfully' });
+  } else {
+    console.warn(`OTP verification failed for ${email}. Provided: "${otp}", Expected: "${validOtp}"`);
+    return res.status(400).json({ message: 'Invalid OTP' });
+  }
+}
+
 
   // Reset password
   if (pathname === '/reset-password' && method === 'POST') {
