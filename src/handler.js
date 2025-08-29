@@ -42,12 +42,12 @@ setupTables();
 // Store OTPs in-memory (For production use persistent store with expiration)
 const otpStore = new Map();
 
-// Setup nodemailer transporter (hardcoded email & password)
+// Setup nodemailer transporter (use your Gmail app password here)
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
-    user: 'mailtest122000@gmail.com',     // YOUR email here
-    pass: 'Testing@142000',                // YOUR app password here
+    user: 'vaibhavpandey331@gmail.com',     // Your Gmail address
+    pass: 'qpiinpbrbcfsiodu',        // Your Gmail App Password (16 chars)
   },
 });
 
@@ -107,7 +107,6 @@ const handler = async (req, res) => {
         [normalizedEmail, password]
       );
 
-      // Adjust depending on your DB driver result shape
       const users = result.rows || result;
 
       if (!users || users.length === 0) return res.status(401).json({ message: 'Invalid credentials' });
@@ -150,8 +149,6 @@ const handler = async (req, res) => {
 
       const users = result.rows || result;
 
-      console.log('DB query result:', users); // Debug
-
       if (!users || users.length === 0) {
         return res.status(404).json({ message: 'Email not registered' });
       }
@@ -160,7 +157,7 @@ const handler = async (req, res) => {
       otpStore.set(normalizedEmail, otp);
 
       const mailOptions = {
-        from: `mailtest122000@gmail.com`,  
+        from: 'mailtest122000@gmail.com',
         to: normalizedEmail,
         subject: 'Your OTP Code',
         text: `Your OTP code is ${otp}. It will expire in 5 minutes.`,
