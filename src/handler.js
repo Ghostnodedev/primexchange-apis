@@ -71,7 +71,7 @@ const handler = async (req, res) => {
     }
   }
 
-  // Existing /register route
+  // /register route
   if (pathname === '/register' && method === 'POST') {
     const { name, email, username, password, confirmpassword, phone, age } = req.body || {};
 
@@ -93,7 +93,7 @@ const handler = async (req, res) => {
     }
   }
 
-  // Existing /login route
+  // /login route
   if (pathname === '/login' && method === 'POST') {
     const { email, password } = req.body || {};
     if (!email || !password) {
@@ -101,12 +101,12 @@ const handler = async (req, res) => {
     }
 
     try {
-      const result = await db.execute(
+      const [rows] = await db.execute(
         `SELECT * FROM register WHERE email = ? AND password = ?`,
         [email, password]
       );
 
-      if (result.rows.length === 0) return res.status(401).json({ message: 'Invalid credentials' });
+      if (rows.length === 0) return res.status(401).json({ message: 'Invalid credentials' });
 
       const token = uuidv4();
       return res.status(200).json({ message: 'Login successful', user: { email }, token });
@@ -115,7 +115,7 @@ const handler = async (req, res) => {
     }
   }
 
-  // Existing /getcrypto route
+  // /getcrypto route
   if (pathname === '/getcrypto' && method === 'GET') {
     try {
       const response = await fetch(
@@ -128,7 +128,7 @@ const handler = async (req, res) => {
     }
   }
 
-  // New: /request-otp — send OTP to user email
+  // /request-otp — send OTP to user email
   if (pathname === '/request-otp' && method === 'POST') {
     const { email } = req.body;
 
@@ -137,17 +137,17 @@ const handler = async (req, res) => {
     }
 
     try {
-      const result = await db.execute(
-        `SELECT * FROM register WHERE email = ?`,
-        [email]
+      const [rows] = await db.execute(
+        `SELECT * FROM register WHERE LOWER(email) = LOWER(?)`,
+        [email.trim()]
       );
 
-      if (result.rows.length === 0) {
+      if (rows.length === 0) {
         return res.status(404).json({ message: 'Email not registered' });
       }
 
       const otp = Math.floor(100000 + Math.random() * 900000).toString();
-      otpStore.set(email, otp);
+      otpStore.set(email.trim(), otp);
 
       // Send OTP email
       const mailOptions = {
@@ -166,7 +166,7 @@ const handler = async (req, res) => {
     }
   }
 
-  // New: /verify-otp — verify user OTP
+  // /verify-otp — verify user OTP
   if (pathname === '/verify-otp' && method === 'POST') {
     const { email, otp } = req.body;
 
@@ -174,16 +174,16 @@ const handler = async (req, res) => {
       return res.status(400).json({ message: 'Email and OTP are required' });
     }
 
-    const validOtp = otpStore.get(email);
+    const validOtp = otpStore.get(email.trim());
     if (validOtp && validOtp === otp) {
-      otpStore.delete(email); // Remove OTP after successful verification
+      otpStore.delete(email.trim()); // Remove OTP after successful verification
       return res.status(200).json({ message: 'OTP verified successfully' });
     } else {
       return res.status(400).json({ message: 'Invalid OTP' });
     }
   }
 
-  // New: /reset-password — reset user password
+  // /reset-password — reset user password
   if (pathname === '/reset-password' && method === 'POST') {
     const { email, newPassword } = req.body;
 
@@ -194,10 +194,12 @@ const handler = async (req, res) => {
     try {
       const result = await db.execute(
         `UPDATE register SET password = ? WHERE email = ?`,
-        [newPassword, email]
+        [newPassword, email.trim()]
       );
 
-      if (result.rowsAffected === 0) {
+      // Depending on your DB driver, rowsAffected might differ
+      // For SQLite, check changes property or length of affected rows
+      if (result.rowsAffected === 0 && result.affectedRows === 0 && (!result || result.length === 0)) {
         return res.status(404).json({ message: 'User not found' });
       }
 
@@ -207,7 +209,7 @@ const handler = async (req, res) => {
     }
   }
 
-  // Default: Route not found
+  // Route not found
   return res.status(404).json({ message: 'Route not found' });
 };
 
