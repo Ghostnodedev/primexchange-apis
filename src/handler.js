@@ -38,16 +38,18 @@ async function setupTables() {
 }
 setupTables();
 
-// In-memory store for OTP arrays per email
-const otpStore = new Map();  // email => [otp1, otp2, ...]
+// In-memory store for OTPs — email -> array of OTPs
+const otpStore = new Map();
 
+// Setup nodemailer transporter
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
     user: 'vaibhavpandey331@gmail.com',     // YOUR email here
-    pass: 'qpii npbr bcfs iodu',             // Your Gmail App Password here
+    pass: 'qpii npbr bcfs iodu',       // Your generated Gmail App Password here
   },
 });
+
 
 const handler = async (req, res) => {
   const { method, url } = req;
@@ -155,14 +157,12 @@ const handler = async (req, res) => {
       // Generate 6-digit OTP
       const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
-      // Get existing OTP array or empty
+      // Get current OTP array or empty
       const otpArray = otpStore.get(normalizedEmail) || [];
-
-      // Add new OTP to array
       otpArray.push(otp);
       otpStore.set(normalizedEmail, otpArray);
 
-      console.log(`Generated OTP for ${normalizedEmail}: ${otp}`);
+      console.log(`[OTP SEND] For ${normalizedEmail}, OTPs:`, otpArray);
 
       // Send OTP email
       const mailOptions = {
@@ -193,22 +193,21 @@ const handler = async (req, res) => {
     otp = otp.toString().trim();
 
     const otpArray = otpStore.get(email) || [];
+    console.log(`[OTP VERIFY] For ${email}, Stored OTPs:`, otpArray, 'Entered OTP:', otp);
 
-    console.log(`Verifying OTP for ${email} - Provided: "${otp}", Stored array: [${otpArray.join(', ')}]`);
-
-    const otpIndex = otpArray.indexOf(otp);
-
-    if (otpIndex > -1) {
-      // Remove used OTP from array
-      otpArray.splice(otpIndex, 1);
+    const index = otpArray.indexOf(otp);
+    if (index > -1) {
+      // Remove the matched OTP
+      otpArray.splice(index, 1);
       if (otpArray.length === 0) {
         otpStore.delete(email);
       } else {
         otpStore.set(email, otpArray);
       }
+      console.log(`[OTP VERIFY] OTP matched and removed.`);
       return res.status(200).json({ message: 'OTP verified successfully' });
     } else {
-      console.warn(`OTP verification failed for ${email}. Provided: "${otp}", OTPs: [${otpArray.join(', ')}]`);
+      console.warn(`[OTP VERIFY] OTP invalid.`);
       return res.status(400).json({ message: 'Invalid OTP' });
     }
   }
