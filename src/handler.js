@@ -38,14 +38,10 @@ async function setupTables() {
 
   console.log('Tables are ready ✅');
 }
-
-// Run setup once
 setupTables();
 
-// Store OTPs in-memory; for production use a persistent store with expiration!
 const otpStore = new Map();
 
-// Setup nodemailer transporter using env vars
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
@@ -71,7 +67,7 @@ const handler = async (req, res) => {
     }
   }
 
-  // /register route
+  // 📌 Register
   if (pathname === '/register' && method === 'POST') {
     const { name, email, username, password, confirmpassword, phone, age } = req.body || {};
 
@@ -93,7 +89,7 @@ const handler = async (req, res) => {
     }
   }
 
-  // /login route
+  // 📌 Login
   if (pathname === '/login' && method === 'POST') {
     const { email, password } = req.body || {};
     if (!email || !password) {
@@ -101,12 +97,12 @@ const handler = async (req, res) => {
     }
 
     try {
-      const [rows] = await db.execute(
+      const result = await db.execute(
         `SELECT * FROM register WHERE email = ? AND password = ?`,
         [email, password]
       );
 
-      if (rows.length === 0) return res.status(401).json({ message: 'Invalid credentials' });
+      if (result.rows.length === 0) return res.status(401).json({ message: 'Invalid credentials' });
 
       const token = uuidv4();
       return res.status(200).json({ message: 'Login successful', user: { email }, token });
@@ -115,7 +111,7 @@ const handler = async (req, res) => {
     }
   }
 
-  // /getcrypto route
+  // 📌 Crypto Data
   if (pathname === '/getcrypto' && method === 'GET') {
     try {
       const response = await fetch(
@@ -128,30 +124,27 @@ const handler = async (req, res) => {
     }
   }
 
-  // /request-otp — send OTP to user email
+  // 📌 Request OTP
   if (pathname === '/request-otp' && method === 'POST') {
     const { email } = req.body;
 
-    if (!email) {
-      return res.status(400).json({ message: 'Email is required' });
-    }
+    if (!email) return res.status(400).json({ message: 'Email is required' });
 
     try {
-      const [rows] = await db.execute(
-        `SELECT * FROM register WHERE LOWER(email) = LOWER(?)`,
-        [email.trim()]
-      );
+      const result = await db.execute(`SELECT * FROM register WHERE email = ?`, [email]);
 
-      if (rows.length === 0) {
+      if (result.rows.length === 0) {
         return res.status(404).json({ message: 'Email not registered' });
       }
 
       const otp = Math.floor(100000 + Math.random() * 900000).toString();
-      otpStore.set(email.trim(), otp);
+      otpStore.set(email, otp);
 
-      // Send OTP email
       const mailOptions = {
-        from: `"${process.env.EMAIL_SENDER_NAME}" <${process.env.EMAIL_SENDER_ADDRESS}>`,
+        from: {
+          name: process.env.EMAIL_SENDER_NAME || 'App Support',
+          address: process.env.EMAIL_SENDER_ADDRESS,
+        },
         to: email,
         subject: 'Your OTP Code',
         text: `Your OTP code is ${otp}. It will expire in 5 minutes.`,
@@ -161,12 +154,12 @@ const handler = async (req, res) => {
 
       return res.status(200).json({ message: 'OTP sent successfully' });
     } catch (err) {
-      console.error('Error sending OTP email:', err);
+      console.error('Error sending OTP:', err);
       return res.status(500).json({ message: 'Failed to send OTP', error: err.message });
     }
   }
 
-  // /verify-otp — verify user OTP
+  // 📌 Verify OTP
   if (pathname === '/verify-otp' && method === 'POST') {
     const { email, otp } = req.body;
 
@@ -174,16 +167,16 @@ const handler = async (req, res) => {
       return res.status(400).json({ message: 'Email and OTP are required' });
     }
 
-    const validOtp = otpStore.get(email.trim());
+    const validOtp = otpStore.get(email);
     if (validOtp && validOtp === otp) {
-      otpStore.delete(email.trim()); // Remove OTP after successful verification
+      otpStore.delete(email);
       return res.status(200).json({ message: 'OTP verified successfully' });
     } else {
       return res.status(400).json({ message: 'Invalid OTP' });
     }
   }
 
-  // /reset-password — reset user password
+  // 📌 Reset Password
   if (pathname === '/reset-password' && method === 'POST') {
     const { email, newPassword } = req.body;
 
@@ -194,12 +187,10 @@ const handler = async (req, res) => {
     try {
       const result = await db.execute(
         `UPDATE register SET password = ? WHERE email = ?`,
-        [newPassword, email.trim()]
+        [newPassword, email]
       );
 
-      // Depending on your DB driver, rowsAffected might differ
-      // For SQLite, check changes property or length of affected rows
-      if (result.rowsAffected === 0 && result.affectedRows === 0 && (!result || result.length === 0)) {
+      if (result.rowsAffected === 0) {
         return res.status(404).json({ message: 'User not found' });
       }
 
@@ -209,7 +200,7 @@ const handler = async (req, res) => {
     }
   }
 
-  // Route not found
+  // 📌 Fallback
   return res.status(404).json({ message: 'Route not found' });
 };
 
