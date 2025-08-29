@@ -1,13 +1,18 @@
 {
   "version": 2,
   "builds": [
-    { "src": "src/handler.js", "use": "@vercel/node" }
+    {
+      "src": "src/handler.js",
+      "use": "@vercel/node"
+    }
   ],
   "routes": [
     { "src": "/register", "methods": ["GET", "POST", "OPTIONS"], "dest": "/src/handler.js" },
     { "src": "/login", "methods": ["GET", "POST", "OPTIONS"], "dest": "/src/handler.js" },
-    { "src": "/login", "methods": ["GET", "POST", "OPTIONS"], "dest": "/src/handler.js" },
     { "src": "/getcrypto", "methods": ["GET", "OPTIONS"], "dest": "/src/handler.js" },
+    { "src": "/request-otp", "methods": ["POST", "OPTIONS"], "dest": "/src/handler.js" },
+    { "src": "/verify-otp", "methods": ["POST", "OPTIONS"], "dest": "/src/handler.js" },
+    { "src": "/reset-password", "methods": ["POST", "OPTIONS"], "dest": "/src/handler.js" },
     { "src": "/test", "methods": ["GET", "OPTIONS"], "dest": "/src/handler.js" }
   ]
 }
