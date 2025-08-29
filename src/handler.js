@@ -9,10 +9,6 @@ const cors = microCors({
   allowHeaders: ['Content-Type'],
 });
 
-// In-memory OTP store
-const otpStore = new Map();
-
-// Setup database tables
 async function setupTables() {
   await db.execute(`
     CREATE TABLE IF NOT EXISTS register (
@@ -32,13 +28,19 @@ async function setupTables() {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       email TEXT NOT NULL,
       password TEXT NOT NULL,
+      phone TEXT,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
   `);
 
   console.log('Tables are ready ✅');
 }
+
+// Run setup once
 setupTables();
+
+// Simple in-memory store for OTPs (for demo only)
+const otpStore = new Map();
 
 const handler = async (req, res) => {
   const { method, url } = req;
@@ -46,6 +48,7 @@ const handler = async (req, res) => {
 
   if (method === 'OPTIONS') return res.status(200).end();
 
+  // Parse JSON body for POST requests
   if (method === 'POST') {
     try {
       const buffers = [];
@@ -57,7 +60,7 @@ const handler = async (req, res) => {
     }
   }
 
-  // 📍 /register
+  // Register user
   if (pathname === '/register' && method === 'POST') {
     const { name, email, username, password, confirmpassword, phone, age } = req.body || {};
 
@@ -79,7 +82,7 @@ const handler = async (req, res) => {
     }
   }
 
-  // 📍 /login
+  // Login user
   if (pathname === '/login' && method === 'POST') {
     const { email, password } = req.body || {};
     if (!email || !password) {
@@ -101,7 +104,7 @@ const handler = async (req, res) => {
     }
   }
 
-  // 📍 /getcrypto
+  // GET CRYPTO
   if (pathname === '/getcrypto' && method === 'GET') {
     try {
       const response = await fetch(
@@ -114,76 +117,105 @@ const handler = async (req, res) => {
     }
   }
 
-  // 📍 /request-otp — Step 1
-  if (pathname === '/request-otp' && method === 'POST') {
-    const { phone } = req.body;
+  // -------------------
+  // Forgot Password Flow
+  // -------------------
 
+  // Step 1: Request OTP for phone number (check both tables)
+  if (pathname === '/request-otp' && method === 'POST') {
+    const { phone } = req.body || {};
+    console.log(phone)
     if (!phone) {
       return res.status(400).json({ message: 'Phone number is required' });
     }
 
     try {
-      const result = await db.execute(
+      // Check register table
+      const registerResult = await db.execute(
         `SELECT * FROM register WHERE phone = ?`,
-        [phone]
+        [phone.trim()]
       );
 
-      if (result.rows.length === 0) {
+      // If not found in register, check login table
+      let userFound = false;
+      if (registerResult.rows.length > 0) {
+        userFound = true;
+      } else {
+        const loginResult = await db.execute(
+          `SELECT * FROM login WHERE phone = ?`,
+          [phone.trim()]
+        );
+        if (loginResult.rows.length > 0) userFound = true;
+      }
+
+      if (!userFound) {
         return res.status(404).json({ message: 'Phone number not registered' });
       }
 
       const otp = Math.floor(100000 + Math.random() * 900000).toString();
-      otpStore.set(phone, otp);
+      otpStore.set(phone.trim(), otp);
 
-      console.log(`OTP for ${phone}: ${otp}`); // Simulate sending OTP
+      console.log(`OTP for ${phone}: ${otp}`); // For testing; replace with real SMS
+
       return res.status(200).json({ message: 'OTP sent successfully' });
     } catch (err) {
       return res.status(500).json({ message: 'DB error', error: err.message });
     }
   }
 
-  // 📍 /verify-otp — Step 2
+  // Step 2: Verify OTP
   if (pathname === '/verify-otp' && method === 'POST') {
-    const { phone, otp } = req.body;
+    const { phone, otp } = req.body || {};
 
     if (!phone || !otp) {
       return res.status(400).json({ message: 'Phone and OTP are required' });
     }
 
-    const validOtp = otpStore.get(phone);
+    const validOtp = otpStore.get(phone.trim());
     if (validOtp && validOtp === otp) {
-      otpStore.delete(phone);
+      otpStore.delete(phone.trim()); // remove OTP after success
       return res.status(200).json({ message: 'OTP verified successfully' });
     } else {
       return res.status(400).json({ message: 'Invalid OTP' });
     }
   }
 
-  // 📍 /reset-password — Step 3
+  // Step 3: Reset password (update in either register or login table)
   if (pathname === '/reset-password' && method === 'POST') {
-    const { phone, newPassword } = req.body;
-
+    const { phone, newPassword } = req.body || {};
     if (!phone || !newPassword) {
       return res.status(400).json({ message: 'Phone and new password are required' });
     }
 
     try {
-      const result = await db.execute(
+      // Try update in register table
+      const updateRegister = await db.execute(
         `UPDATE register SET password = ? WHERE phone = ?`,
-        [newPassword, phone]
+        [newPassword, phone.trim()]
       );
 
-      if (result.rowsAffected === 0) {
-        return res.status(404).json({ message: 'User not found' });
+      if (updateRegister.rowsAffected && updateRegister.rowsAffected > 0) {
+        return res.status(200).json({ message: 'Password updated successfully' });
       }
 
-      return res.status(200).json({ message: 'Password updated successfully' });
+      // If no rows affected in register, try login table
+      const updateLogin = await db.execute(
+        `UPDATE login SET password = ? WHERE phone = ?`,
+        [newPassword, phone.trim()]
+      );
+
+      if (updateLogin.rowsAffected && updateLogin.rowsAffected > 0) {
+        return res.status(200).json({ message: 'Password updated successfully' });
+      }
+
+      // If no rows affected in either table
+      return res.status(404).json({ message: 'User not found' });
     } catch (err) {
       return res.status(500).json({ message: 'DB error', error: err.message });
     }
   }
 
-  // 📍 If no route matches
+  // Not found route
   return res.status(404).json({ message: 'Route not found' });
 };
 
