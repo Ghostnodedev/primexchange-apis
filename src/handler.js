@@ -1,10 +1,8 @@
+// src/handler.js
 import microCors from 'micro-cors';
 import { v4 as uuidv4 } from 'uuid';
 import { db } from './libdb.js';
 import nodemailer from 'nodemailer';
-import dotenv from 'dotenv';
-
-dotenv.config();
 
 const cors = microCors({
   origin: '*',
@@ -41,15 +39,15 @@ async function setupTables() {
 // Run setup once
 setupTables();
 
-// Store OTPs in-memory; for production use a persistent store with expiration!
+// Store OTPs in-memory (For production use persistent store with expiration)
 const otpStore = new Map();
 
-// Setup nodemailer transporter using env vars
+// Setup nodemailer transporter (hardcoded email & password)
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
-    user: 'mailtest122000@gmail.com',
-    pass: 'Testing@142000',
+    user: 'mailtest122000@gmail.com',     // YOUR email here
+    pass: 'Testing@142000',                // YOUR app password here
   },
 });
 
@@ -70,7 +68,7 @@ const handler = async (req, res) => {
     }
   }
 
-  // /register route
+  // /register
   if (pathname === '/register' && method === 'POST') {
     const { name, email, username, password, confirmpassword, phone, age } = req.body || {};
 
@@ -82,17 +80,19 @@ const handler = async (req, res) => {
     }
 
     try {
+      const normalizedEmail = email.toLowerCase();
+
       await db.execute(
         `INSERT INTO register (name, email, username, password, phone, age) VALUES (?, ?, ?, ?, ?, ?)`,
-        [name, email, username, password, phone || '', age || null]
+        [name, normalizedEmail, username, password, phone || '', age || null]
       );
-      return res.status(201).json({ message: 'User registered successfully', user: { username, email } });
+      return res.status(201).json({ message: 'User registered successfully', user: { username, email: normalizedEmail } });
     } catch (err) {
       return res.status(400).json({ message: 'User already exists or DB error', error: err.message });
     }
   }
 
-  // /login route
+  // /login
   if (pathname === '/login' && method === 'POST') {
     const { email, password } = req.body || {};
     if (!email || !password) {
@@ -100,21 +100,26 @@ const handler = async (req, res) => {
     }
 
     try {
+      const normalizedEmail = email.toLowerCase();
+
       const result = await db.execute(
         `SELECT * FROM register WHERE email = ? AND password = ?`,
-        [email, password]
+        [normalizedEmail, password]
       );
 
-      if (!result.rows || result.rows.length === 0) return res.status(401).json({ message: 'Invalid credentials' });
+      // Adjust depending on your DB driver result shape
+      const users = result.rows || result;
+
+      if (!users || users.length === 0) return res.status(401).json({ message: 'Invalid credentials' });
 
       const token = uuidv4();
-      return res.status(200).json({ message: 'Login successful', user: { email }, token });
+      return res.status(200).json({ message: 'Login successful', user: { email: normalizedEmail }, token });
     } catch (err) {
       return res.status(500).json({ message: 'DB error', error: err.message });
     }
   }
 
-  // /getcrypto route
+  // /getcrypto
   if (pathname === '/getcrypto' && method === 'GET') {
     try {
       const response = await fetch(
@@ -127,7 +132,7 @@ const handler = async (req, res) => {
     }
   }
 
-  // /request-otp route — send OTP email
+  // /request-otp
   if (pathname === '/request-otp' && method === 'POST') {
     const { email } = req.body || {};
 
@@ -136,23 +141,27 @@ const handler = async (req, res) => {
     }
 
     try {
+      const normalizedEmail = email.toLowerCase();
+
       const result = await db.execute(
-        `SELECT * FROM register WHERE LOWER(email) = LOWER(?)`,
-        [email]
+        `SELECT * FROM register WHERE email = ?`,
+        [normalizedEmail]
       );
 
-      console.log('DB query result:', result.rows); // Debug output
+      const users = result.rows || result;
 
-      if (!result.rows || result.rows.length === 0) {
+      console.log('DB query result:', users); // Debug
+
+      if (!users || users.length === 0) {
         return res.status(404).json({ message: 'Email not registered' });
       }
 
       const otp = Math.floor(100000 + Math.random() * 900000).toString();
-      otpStore.set(email, otp);
+      otpStore.set(normalizedEmail, otp);
 
       const mailOptions = {
-        from: `"${process.env.EMAIL_SENDER_NAME}" <${process.env.EMAIL_SENDER_ADDRESS}>`,
-        to: email,
+        from: `"YourAppName" <mailtest122000@gmail.com>`,  // Use your actual email here
+        to: normalizedEmail,
         subject: 'Your OTP Code',
         text: `Your OTP code is ${otp}. It will expire in 5 minutes.`,
       };
@@ -166,7 +175,7 @@ const handler = async (req, res) => {
     }
   }
 
-  // /verify-otp route — verify user OTP
+  // /verify-otp
   if (pathname === '/verify-otp' && method === 'POST') {
     const { email, otp } = req.body || {};
 
@@ -174,16 +183,18 @@ const handler = async (req, res) => {
       return res.status(400).json({ message: 'Email and OTP are required' });
     }
 
-    const validOtp = otpStore.get(email);
+    const normalizedEmail = email.toLowerCase();
+    const validOtp = otpStore.get(normalizedEmail);
+
     if (validOtp && validOtp === otp) {
-      otpStore.delete(email); // Remove OTP after successful verification
+      otpStore.delete(normalizedEmail); // Remove OTP after success
       return res.status(200).json({ message: 'OTP verified successfully' });
     } else {
       return res.status(400).json({ message: 'Invalid OTP' });
     }
   }
 
-  // /reset-password route — reset user password
+  // /reset-password
   if (pathname === '/reset-password' && method === 'POST') {
     const { email, newPassword } = req.body || {};
 
@@ -192,14 +203,16 @@ const handler = async (req, res) => {
     }
 
     try {
+      const normalizedEmail = email.toLowerCase();
+
       const result = await db.execute(
-        `UPDATE register SET password = ? WHERE LOWER(email) = LOWER(?)`,
-        [newPassword, email]
+        `UPDATE register SET password = ? WHERE email = ?`,
+        [newPassword, normalizedEmail]
       );
 
-      // For some DBs, rowsAffected may not exist; adjust accordingly
-      if (!result.rowsAffected && !result.changes) {
-        // fallback check: no rows updated
+      const affected = result.rowsAffected || result.changes || 0;
+
+      if (affected === 0) {
         return res.status(404).json({ message: 'User not found' });
       }
 
