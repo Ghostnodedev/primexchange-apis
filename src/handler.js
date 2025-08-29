@@ -1,4 +1,3 @@
-// src/handler.js
 import microCors from 'micro-cors';
 import { v4 as uuidv4 } from 'uuid';
 import { db } from './libdb.js';
@@ -42,10 +41,10 @@ async function setupTables() {
 // Run setup once
 setupTables();
 
-// In-memory OTP store (replace with DB or Redis in prod)
+// Store OTPs in-memory; for production use a persistent store with expiration!
 const otpStore = new Map();
 
-// Nodemailer transporter using environment variables
+// Setup nodemailer transporter using env vars
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
@@ -71,7 +70,7 @@ const handler = async (req, res) => {
     }
   }
 
-  // Register endpoint
+  // /register route
   if (pathname === '/register' && method === 'POST') {
     const { name, email, username, password, confirmpassword, phone, age } = req.body || {};
 
@@ -93,7 +92,7 @@ const handler = async (req, res) => {
     }
   }
 
-  // Login endpoint
+  // /login route
   if (pathname === '/login' && method === 'POST') {
     const { email, password } = req.body || {};
     if (!email || !password) {
@@ -106,7 +105,7 @@ const handler = async (req, res) => {
         [email, password]
       );
 
-      if (result.rows.length === 0) return res.status(401).json({ message: 'Invalid credentials' });
+      if (!result.rows || result.rows.length === 0) return res.status(401).json({ message: 'Invalid credentials' });
 
       const token = uuidv4();
       return res.status(200).json({ message: 'Login successful', user: { email }, token });
@@ -115,7 +114,7 @@ const handler = async (req, res) => {
     }
   }
 
-  // Get crypto data endpoint
+  // /getcrypto route
   if (pathname === '/getcrypto' && method === 'GET') {
     try {
       const response = await fetch(
@@ -128,7 +127,7 @@ const handler = async (req, res) => {
     }
   }
 
-  // Step 1: Request OTP - send OTP to user email
+  // /request-otp route — send OTP email
   if (pathname === '/request-otp' && method === 'POST') {
     const { email } = req.body || {};
 
@@ -138,11 +137,13 @@ const handler = async (req, res) => {
 
     try {
       const result = await db.execute(
-        `SELECT * FROM register WHERE email = ?`,
+        `SELECT * FROM register WHERE LOWER(email) = LOWER(?)`,
         [email]
       );
 
-      if (result.rows.length === 0) {
+      console.log('DB query result:', result.rows); // Debug output
+
+      if (!result.rows || result.rows.length === 0) {
         return res.status(404).json({ message: 'Email not registered' });
       }
 
@@ -160,12 +161,12 @@ const handler = async (req, res) => {
 
       return res.status(200).json({ message: 'OTP sent successfully' });
     } catch (err) {
-      console.error('Error sending OTP:', err);
+      console.error('Error sending OTP email:', err);
       return res.status(500).json({ message: 'Failed to send OTP', error: err.message });
     }
   }
 
-  // Step 2: Verify OTP
+  // /verify-otp route — verify user OTP
   if (pathname === '/verify-otp' && method === 'POST') {
     const { email, otp } = req.body || {};
 
@@ -175,14 +176,14 @@ const handler = async (req, res) => {
 
     const validOtp = otpStore.get(email);
     if (validOtp && validOtp === otp) {
-      otpStore.delete(email); // Remove OTP after verification
+      otpStore.delete(email); // Remove OTP after successful verification
       return res.status(200).json({ message: 'OTP verified successfully' });
     } else {
       return res.status(400).json({ message: 'Invalid OTP' });
     }
   }
 
-  // Step 3: Reset password
+  // /reset-password route — reset user password
   if (pathname === '/reset-password' && method === 'POST') {
     const { email, newPassword } = req.body || {};
 
@@ -192,11 +193,13 @@ const handler = async (req, res) => {
 
     try {
       const result = await db.execute(
-        `UPDATE register SET password = ? WHERE email = ?`,
+        `UPDATE register SET password = ? WHERE LOWER(email) = LOWER(?)`,
         [newPassword, email]
       );
 
-      if (result.rowsAffected === 0) {
+      // For some DBs, rowsAffected may not exist; adjust accordingly
+      if (!result.rowsAffected && !result.changes) {
+        // fallback check: no rows updated
         return res.status(404).json({ message: 'User not found' });
       }
 
@@ -206,7 +209,7 @@ const handler = async (req, res) => {
     }
   }
 
-  // Default fallback for unknown routes
+  // Default 404
   return res.status(404).json({ message: 'Route not found' });
 };
 
