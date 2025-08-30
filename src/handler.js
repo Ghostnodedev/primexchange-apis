@@ -27,6 +27,7 @@ async function setupTables() {
 
   await db.execute(`
     CREATE TABLE IF NOT EXISTS login (
+      CREATE TABLE IF NOT EXISTS login (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       email TEXT UNIQUE NOT NULL,
       password TEXT NOT NULL,
@@ -36,7 +37,31 @@ async function setupTables() {
     );
   `);
 
-  console.log('Tables are ready ✅');
+  // Add otp column if it doesn't exist
+  try {
+    await db.execute(`ALTER TABLE login ADD COLUMN otp TEXT`);
+    console.log('Added otp column to login table');
+  } catch (err) {
+    if (err.message.includes('duplicate column name')) {
+      console.log('otp column already exists, skipping');
+    } else {
+      console.error('Error adding otp column:', err);
+    }
+  }
+
+  // Add otp_expires_at column if it doesn't exist
+  try {
+    await db.execute(`ALTER TABLE login ADD COLUMN otp_expires_at INTEGER`);
+    console.log('Added otp_expires_at column to login table');
+  } catch (err) {
+    if (err.message.includes('duplicate column name')) {
+      console.log('otp_expires_at column already exists, skipping');
+    } else {
+      console.error('Error adding otp_expires_at column:', err);
+    }
+  }
+
+  console.log('Database tables are ready!');
 }
 setupTables();
 
@@ -44,8 +69,8 @@ setupTables();
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
-    user: 'vaibhavpandey331@gmail.com',     // YOUR email here
-    pass: 'qpii npbr bcfs iodu',       // Your generated Gmail App Password here
+    user: 'mailtest@gmail.com',     // YOUR email here 
+    pass: 'qpii npbr bcfs iodu',    // Your generated Gmail App Password here
   },
 });
 
@@ -86,7 +111,7 @@ const handler = async (req, res) => {
         [name, normalizedEmail, username, password, phone || '', age || null]
       );
 
-      // Also insert into login table for login purposes (password here)
+      // Also create a login entry (for OTP etc)
       await db.execute(
         `INSERT INTO login (email, password) VALUES (?, ?)`,
         [normalizedEmail, password]
@@ -109,7 +134,7 @@ const handler = async (req, res) => {
       const normalizedEmail = email.toLowerCase().trim();
 
       const result = await db.execute(
-        `SELECT * FROM login WHERE email = ? AND password = ?`,
+        `SELECT * FROM register WHERE email = ? AND password = ?`,
         [normalizedEmail, password]
       );
 
@@ -124,20 +149,7 @@ const handler = async (req, res) => {
     }
   }
 
-  // Get Crypto data (unchanged)
-  if (pathname === '/getcrypto' && method === 'GET') {
-    try {
-      const response = await fetch(
-        'https://data-api.coindesk.com/index/cc/v1/markets/instruments?market=ccix&instrument_status=ACTIVE'
-      );
-      const data = await response.json();
-      return res.status(200).json(data);
-    } catch (err) {
-      return res.status(500).json({ message: 'Failed to fetch crypto data' });
-    }
-  }
-
-  // REQUEST OTP
+  // Request OTP
   if (pathname === '/request-otp' && method === 'POST') {
     const { email } = req.body || {};
 
@@ -148,12 +160,13 @@ const handler = async (req, res) => {
     try {
       const normalizedEmail = email.toLowerCase().trim();
 
-      // Check if user exists in register table
-      const userResult = await db.execute(
+      // Check user exists
+      const result = await db.execute(
         `SELECT * FROM register WHERE email = ?`,
         [normalizedEmail]
       );
-      const users = userResult.rows || userResult;
+
+      const users = result.rows || result;
 
       if (!users || users.length === 0) {
         return res.status(404).json({ message: 'Email not registered' });
@@ -161,24 +174,27 @@ const handler = async (req, res) => {
 
       // Generate 6-digit OTP
       const otp = Math.floor(100000 + Math.random() * 900000).toString();
-      const otpExpiresAt = Date.now() + 5 * 60 * 1000; // 5 minutes from now
 
-      // Insert or update OTP and expiry in login table
-      await db.execute(`
-        INSERT INTO login (email, otp, otp_expires_at)
-        VALUES (?, ?, ?)
-        ON CONFLICT(email) DO UPDATE SET otp = excluded.otp, otp_expires_at = excluded.otp_expires_at
-      `, [normalizedEmail, otp, otpExpiresAt]);
+      // Set OTP expiration (5 minutes from now)
+      const expiresAt = Date.now() + 5 * 60 * 1000;
+
+      // Update OTP & expiration in login table
+      await db.execute(
+        `UPDATE login SET otp = ?, otp_expires_at = ? WHERE email = ?`,
+        [otp, expiresAt, normalizedEmail]
+      );
+
+      console.log(`[OTP SENT] For ${normalizedEmail}, OTP: ${otp}`);
 
       // Send OTP email
-      await transporter.sendMail({
-        from: 'mailtest@gmail.com',
+      const mailOptions = {
+        from: `mailtest@gmail.com`,
         to: normalizedEmail,
         subject: 'Your OTP Code',
         text: `Your OTP code is ${otp}. It will expire in 5 minutes.`,
-      });
+      };
 
-      console.log(`[OTP SENT] ${normalizedEmail}: ${otp}`);
+      await transporter.sendMail(mailOptions);
 
       return res.status(200).json({ message: 'OTP sent successfully' });
     } catch (err) {
@@ -187,31 +203,36 @@ const handler = async (req, res) => {
     }
   }
 
-  // VERIFY OTP
+  // Verify OTP
   if (pathname === '/verify-otp' && method === 'POST') {
-    const { email, otp } = req.body || {};
+    let { email, otp } = req.body || {};
 
     if (!email || !otp) {
       return res.status(400).json({ message: 'Email and OTP are required' });
     }
 
+    email = email.toLowerCase().trim();
+    otp = otp.toString().trim();
+
     try {
-      const normalizedEmail = email.toLowerCase().trim();
-      const enteredOtp = otp.toString().trim();
-
-      const otpRowResult = await db.execute(
+      // Get stored OTP and expiration from DB
+      const result = await db.execute(
         `SELECT otp, otp_expires_at FROM login WHERE email = ?`,
-        [normalizedEmail]
+        [email]
       );
-      const rows = otpRowResult.rows || otpRowResult;
 
+      const rows = result.rows || result;
       if (!rows || rows.length === 0) {
-        return res.status(400).json({ message: 'No OTP found for this email. Please request a new OTP.' });
+        return res.status(404).json({ message: 'Email not found' });
       }
 
       const { otp: storedOtp, otp_expires_at } = rows[0];
 
-      if (storedOtp !== enteredOtp) {
+      if (!storedOtp) {
+        return res.status(400).json({ message: 'No OTP found for this email. Please request a new OTP.' });
+      }
+
+      if (storedOtp !== otp) {
         return res.status(400).json({ message: 'Invalid OTP' });
       }
 
@@ -219,10 +240,10 @@ const handler = async (req, res) => {
         return res.status(400).json({ message: 'OTP expired. Please request a new OTP.' });
       }
 
-      // OTP valid - clear OTP and expiry in DB to prevent reuse
+      // OTP valid - clear it from DB after successful verification
       await db.execute(
         `UPDATE login SET otp = NULL, otp_expires_at = NULL WHERE email = ?`,
-        [normalizedEmail]
+        [email]
       );
 
       return res.status(200).json({ message: 'OTP verified successfully' });
@@ -231,7 +252,7 @@ const handler = async (req, res) => {
     }
   }
 
-  // Reset password - only allow if OTP is verified (no otp stored for email)
+  // Reset password
   if (pathname === '/reset-password' && method === 'POST') {
     const { email, newPassword } = req.body || {};
 
@@ -241,16 +262,6 @@ const handler = async (req, res) => {
 
     try {
       const normalizedEmail = email.toLowerCase().trim();
-
-      // Check if OTP still exists (means not verified)
-      const otpCheckResult = await db.execute(
-        `SELECT otp FROM login WHERE email = ?`,
-        [normalizedEmail]
-      );
-      const otpRows = otpCheckResult.rows || otpCheckResult;
-      if (otpRows && otpRows.length > 0 && otpRows[0].otp) {
-        return res.status(403).json({ message: 'OTP not verified. Please verify OTP first.' });
-      }
 
       const result = await db.execute(
         `UPDATE register SET password = ? WHERE email = ?`,
@@ -263,7 +274,7 @@ const handler = async (req, res) => {
         return res.status(404).json({ message: 'User not found' });
       }
 
-      // Also update password in login table for consistency
+      // Also update login password to keep consistent
       await db.execute(
         `UPDATE login SET password = ? WHERE email = ?`,
         [newPassword, normalizedEmail]
