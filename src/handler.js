@@ -1,7 +1,7 @@
 // src/handler.js
 import microCors from 'micro-cors';
 import { v4 as uuidv4 } from 'uuid';
-import { db } from '../libdb.js';  // your DB connection here
+import { db } from './libdb.js';  // your DB connection here
 import nodemailer from 'nodemailer';
 
 const cors = microCors({
