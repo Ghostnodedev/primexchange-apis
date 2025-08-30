@@ -1,7 +1,7 @@
 // src/handler.js
 import microCors from 'micro-cors';
 import { v4 as uuidv4 } from 'uuid';
-import { db } from './libdb.js';  // your DB connection here
+import { db } from './libdb.js';
 import nodemailer from 'nodemailer';
 
 const cors = microCors({
@@ -10,7 +10,7 @@ const cors = microCors({
   allowHeaders: ['Content-Type'],
 });
 
-// Setup your database tables (run once)
+// Setup your database tables
 async function setupTables() {
   await db.execute(`
     CREATE TABLE IF NOT EXISTS register (
@@ -38,18 +38,18 @@ async function setupTables() {
 }
 setupTables();
 
-// In-memory OTP store
-const otpStore = new Map();
+// In-memory stores
+const otpStore = new Map();           // email -> otp
+const otpVerifiedStore = new Set();   // emails that passed OTP verification
 
-// Setup nodemailer transporter
+// Email transporter
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
-    user: 'vaibhavpandey331@gmail.com',     // YOUR email here
-    pass: 'qpii npbr bcfs iodu',       // Your generated Gmail App Password here
+    user: 'mailtest@gmail.com',
+    pass: 'qpii npbr bcfs iodu',
   },
 });
-
 
 const handler = async (req, res) => {
   const { method, url } = req;
@@ -57,6 +57,7 @@ const handler = async (req, res) => {
 
   if (method === 'OPTIONS') return res.status(200).end();
 
+  // Parse JSON body
   if (method === 'POST') {
     try {
       const buffers = [];
@@ -75,16 +76,19 @@ const handler = async (req, res) => {
     if (!name || !email || !username || !password || !confirmpassword) {
       return res.status(400).json({ message: 'Missing required fields' });
     }
+
     if (password !== confirmpassword) {
       return res.status(400).json({ message: 'Passwords do not match' });
     }
 
     try {
       const normalizedEmail = email.toLowerCase().trim();
+
       await db.execute(
         `INSERT INTO register (name, email, username, password, phone, age) VALUES (?, ?, ?, ?, ?, ?)`,
         [name, normalizedEmail, username, password, phone || '', age || null]
       );
+
       return res.status(201).json({ message: 'User registered successfully', user: { username, email: normalizedEmail } });
     } catch (err) {
       return res.status(400).json({ message: 'User already exists or DB error', error: err.message });
@@ -100,6 +104,7 @@ const handler = async (req, res) => {
 
     try {
       const normalizedEmail = email.toLowerCase().trim();
+
       const result = await db.execute(
         `SELECT * FROM register WHERE email = ? AND password = ?`,
         [normalizedEmail, password]
@@ -153,6 +158,7 @@ const handler = async (req, res) => {
 
       const otp = Math.floor(100000 + Math.random() * 900000).toString();
       otpStore.set(normalizedEmail, otp);
+      otpVerifiedStore.delete(normalizedEmail); // reset verified status
 
       console.log(`[OTP SENT] For ${normalizedEmail}: ${otp}`);
 
@@ -172,12 +178,12 @@ const handler = async (req, res) => {
     }
   }
 
-  // VERIFY OTP AND RESET PASSWORD
+  // VERIFY OTP
   if (pathname === '/verify-otp' && method === 'POST') {
-    const { email, otp, newPassword } = req.body || {};
+    const { email, otp } = req.body || {};
 
-    if (!email || !otp || !newPassword) {
-      return res.status(400).json({ message: 'Email, OTP, and new password are required' });
+    if (!email || !otp) {
+      return res.status(400).json({ message: 'Email and OTP are required' });
     }
 
     const normalizedEmail = email.toLowerCase().trim();
@@ -185,6 +191,26 @@ const handler = async (req, res) => {
 
     if (!storedOtp || storedOtp !== otp.toString().trim()) {
       return res.status(400).json({ message: 'Invalid or expired OTP' });
+    }
+
+    otpStore.delete(normalizedEmail);
+    otpVerifiedStore.add(normalizedEmail);
+
+    return res.status(200).json({ message: 'OTP verified successfully' });
+  }
+
+  // CREATE NEW PASSWORD (AFTER OTP VERIFIED)
+  if (pathname === '/create-password' && method === 'POST') {
+    const { email, newPassword } = req.body || {};
+
+    if (!email || !newPassword) {
+      return res.status(400).json({ message: 'Email and new password are required' });
+    }
+
+    const normalizedEmail = email.toLowerCase().trim();
+
+    if (!otpVerifiedStore.has(normalizedEmail)) {
+      return res.status(403).json({ message: 'OTP not verified. Please verify OTP first.' });
     }
 
     try {
@@ -199,15 +225,15 @@ const handler = async (req, res) => {
         return res.status(404).json({ message: 'User not found' });
       }
 
-      otpStore.delete(normalizedEmail);
+      otpVerifiedStore.delete(normalizedEmail); // Clean up after success
 
-      return res.status(200).json({ message: 'OTP verified and password updated successfully' });
+      return res.status(200).json({ message: 'Password updated successfully' });
     } catch (err) {
       return res.status(500).json({ message: 'DB error', error: err.message });
     }
   }
 
-  // DEFAULT 404
+  // 404 fallback
   return res.status(404).json({ message: 'Route not found' });
 };
 
