@@ -28,8 +28,10 @@ async function setupTables() {
   await db.execute(`
     CREATE TABLE IF NOT EXISTS login (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      email TEXT NOT NULL,
+      email TEXT UNIQUE NOT NULL,
       password TEXT NOT NULL,
+      otp TEXT,
+      otp_expires_at INTEGER,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
   `);
@@ -37,9 +39,6 @@ async function setupTables() {
   console.log('Tables are ready ✅');
 }
 setupTables();
-
-// In-memory store for OTPs — email -> array of OTPs
-const otpStore = new Map();
 
 // Setup nodemailer transporter
 const transporter = nodemailer.createTransport({
@@ -49,7 +48,6 @@ const transporter = nodemailer.createTransport({
     pass: 'qpii npbr bcfs iodu',       // Your generated Gmail App Password here
   },
 });
-
 
 const handler = async (req, res) => {
   const { method, url } = req;
@@ -87,6 +85,13 @@ const handler = async (req, res) => {
         `INSERT INTO register (name, email, username, password, phone, age) VALUES (?, ?, ?, ?, ?, ?)`,
         [name, normalizedEmail, username, password, phone || '', age || null]
       );
+
+      // Also insert into login table for login purposes (password here)
+      await db.execute(
+        `INSERT INTO login (email, password) VALUES (?, ?)`,
+        [normalizedEmail, password]
+      );
+
       return res.status(201).json({ message: 'User registered successfully', user: { username, email: normalizedEmail } });
     } catch (err) {
       return res.status(400).json({ message: 'User already exists or DB error', error: err.message });
@@ -104,7 +109,7 @@ const handler = async (req, res) => {
       const normalizedEmail = email.toLowerCase().trim();
 
       const result = await db.execute(
-        `SELECT * FROM register WHERE email = ? AND password = ?`,
+        `SELECT * FROM login WHERE email = ? AND password = ?`,
         [normalizedEmail, password]
       );
 
@@ -119,7 +124,7 @@ const handler = async (req, res) => {
     }
   }
 
-  // Get Crypto data
+  // Get Crypto data (unchanged)
   if (pathname === '/getcrypto' && method === 'GET') {
     try {
       const response = await fetch(
@@ -132,8 +137,7 @@ const handler = async (req, res) => {
     }
   }
 
-  let storeotp = []
-  // Request OTP
+  // REQUEST OTP
   if (pathname === '/request-otp' && method === 'POST') {
     const { email } = req.body || {};
 
@@ -144,12 +148,12 @@ const handler = async (req, res) => {
     try {
       const normalizedEmail = email.toLowerCase().trim();
 
-      const result = await db.execute(
+      // Check if user exists in register table
+      const userResult = await db.execute(
         `SELECT * FROM register WHERE email = ?`,
         [normalizedEmail]
       );
-
-      const users = result.rows || result;
+      const users = userResult.rows || userResult;
 
       if (!users || users.length === 0) {
         return res.status(404).json({ message: 'Email not registered' });
@@ -157,26 +161,24 @@ const handler = async (req, res) => {
 
       // Generate 6-digit OTP
       const otp = Math.floor(100000 + Math.random() * 900000).toString();
-      console.log("otp:", otp);
-      storeotp.push({email:normalizedEmail, otp:otp})
-      console.log("storeotp:", storeotp);
+      const otpExpiresAt = Date.now() + 5 * 60 * 1000; // 5 minutes from now
 
-      // Get current OTP array or empty
-      const otpArray = otpStore.get(normalizedEmail) || [];
-      otpArray.push(otp);
-      otpStore.set(normalizedEmail, otpArray);
-
-      console.log(`[OTP SEND] For ${normalizedEmail}, OTPs:`, otpArray);
+      // Insert or update OTP and expiry in login table
+      await db.execute(`
+        INSERT INTO login (email, otp, otp_expires_at)
+        VALUES (?, ?, ?)
+        ON CONFLICT(email) DO UPDATE SET otp = excluded.otp, otp_expires_at = excluded.otp_expires_at
+      `, [normalizedEmail, otp, otpExpiresAt]);
 
       // Send OTP email
-      const mailOptions = {
-        from: `mailtest122000@gmail.com`,
+      await transporter.sendMail({
+        from: 'mailtest@gmail.com',
         to: normalizedEmail,
         subject: 'Your OTP Code',
         text: `Your OTP code is ${otp}. It will expire in 5 minutes.`,
-      };
+      });
 
-      await transporter.sendMail(mailOptions);
+      console.log(`[OTP SENT] ${normalizedEmail}: ${otp}`);
 
       return res.status(200).json({ message: 'OTP sent successfully' });
     } catch (err) {
@@ -185,44 +187,51 @@ const handler = async (req, res) => {
     }
   }
 
-  // Verify OTP
+  // VERIFY OTP
   if (pathname === '/verify-otp' && method === 'POST') {
-    let { email, otp } = req.body || {};
+    const { email, otp } = req.body || {};
 
     if (!email || !otp) {
       return res.status(400).json({ message: 'Email and OTP are required' });
     }
 
-    email = email.toLowerCase().trim();
-    otp = otp.toString().trim();
+    try {
+      const normalizedEmail = email.toLowerCase().trim();
+      const enteredOtp = otp.toString().trim();
 
-    const find = storeotp.find(item => item.email === email && item.otp === otp);
-    console.log(find);
-    if(find){
-      console.log(`[OTP VERIFY] Found OTP for ${email}:`, find);
-    }
+      const otpRowResult = await db.execute(
+        `SELECT otp, otp_expires_at FROM login WHERE email = ?`,
+        [normalizedEmail]
+      );
+      const rows = otpRowResult.rows || otpRowResult;
 
-    const otpArray = otpStore.get(email) || [];
-    console.log(`[OTP VERIFY] For ${email}, Stored OTPs:`, otpArray, 'Entered OTP:', otp);
-
-    const index = otpArray.indexOf(otp);
-    if (index > -1) {
-      // Remove the matched OTP
-      otpArray.splice(index, 1);
-      if (otpArray.length === 0) {
-        otpStore.delete(email);
-      } else {
-        otpStore.set(email, otpArray);
+      if (!rows || rows.length === 0) {
+        return res.status(400).json({ message: 'No OTP found for this email. Please request a new OTP.' });
       }
-      console.log(`[OTP VERIFY] OTP matched and removed.`);
+
+      const { otp: storedOtp, otp_expires_at } = rows[0];
+
+      if (storedOtp !== enteredOtp) {
+        return res.status(400).json({ message: 'Invalid OTP' });
+      }
+
+      if (Date.now() > otp_expires_at) {
+        return res.status(400).json({ message: 'OTP expired. Please request a new OTP.' });
+      }
+
+      // OTP valid - clear OTP and expiry in DB to prevent reuse
+      await db.execute(
+        `UPDATE login SET otp = NULL, otp_expires_at = NULL WHERE email = ?`,
+        [normalizedEmail]
+      );
+
       return res.status(200).json({ message: 'OTP verified successfully' });
-    } else {
-      console.warn(`[OTP VERIFY] OTP invalid.`);
-      return res.status(400).json({ message: 'Invalid OTP' });
+    } catch (err) {
+      return res.status(500).json({ message: 'DB error', error: err.message });
     }
   }
 
-  // Reset password
+  // Reset password - only allow if OTP is verified (no otp stored for email)
   if (pathname === '/reset-password' && method === 'POST') {
     const { email, newPassword } = req.body || {};
 
@@ -232,6 +241,16 @@ const handler = async (req, res) => {
 
     try {
       const normalizedEmail = email.toLowerCase().trim();
+
+      // Check if OTP still exists (means not verified)
+      const otpCheckResult = await db.execute(
+        `SELECT otp FROM login WHERE email = ?`,
+        [normalizedEmail]
+      );
+      const otpRows = otpCheckResult.rows || otpCheckResult;
+      if (otpRows && otpRows.length > 0 && otpRows[0].otp) {
+        return res.status(403).json({ message: 'OTP not verified. Please verify OTP first.' });
+      }
 
       const result = await db.execute(
         `UPDATE register SET password = ? WHERE email = ?`,
@@ -243,6 +262,12 @@ const handler = async (req, res) => {
       if (affected === 0) {
         return res.status(404).json({ message: 'User not found' });
       }
+
+      // Also update password in login table for consistency
+      await db.execute(
+        `UPDATE login SET password = ? WHERE email = ?`,
+        [newPassword, normalizedEmail]
+      );
 
       return res.status(200).json({ message: 'Password updated successfully' });
     } catch (err) {
