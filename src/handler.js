@@ -69,7 +69,7 @@ setupTables();
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
-    user: 'mailtest@gmail.com',     // YOUR email here 
+    user: 'vaibhavpandey331@gmail.com',     // YOUR email here 
     pass: 'qpii npbr bcfs iodu',    // Your generated Gmail App Password here
   },
 });
