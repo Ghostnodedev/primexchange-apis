@@ -96,8 +96,8 @@ const handler = async (req, res) => {
 
   // LOGIN
   if (pathname === '/login' && method === 'POST') {
-    const { email, password } = req.body || {};
-    if (!email || !password) {
+    const { email, password , username ,phone } = req.body || {};
+    if (!email || !password || !username || !phone) {
       return res.status(400).json({ message: 'Missing login fields' });
     }
 
@@ -164,31 +164,35 @@ const handler = async (req, res) => {
   }
 
   // VERIFY OTP
-  if (pathname === '/verify-otp' && method === 'POST') {
-    const { email, otp } = req.body || {};
+// VERIFY OTP
+if (pathname === '/verify-otp' && method === 'POST') {
+  const { email, otp } = req.body || {};
 
-    if (!email || !otp) {
-      return res.status(400).json({ message: 'Email and OTP are required' });
-    }
-
-    const normalizedEmail = email.toLowerCase().trim();
-    const storedOtp = otpStore.get(normalizedEmail);
-
-    console.log(`[OTP VERIFY] Email: ${normalizedEmail}, Stored: ${storedOtp}, Entered: ${otp}`);
-
-    if (!storedOtp || storedOtp !== otp.toString().trim()) {
-      return res.status(400).json({ message: 'Invalid or expired OTP' });
-    }
-
-    otpStore.delete(normalizedEmail);          // remove OTP after use
-    otpVerifiedStore.add(normalizedEmail);     // mark as verified
-
-    return res.status(200).json({ message: 'OTP verified successfully' });
+  if (!email || !otp) {
+    return res.status(400).json({ message: 'Email and OTP are required' });
   }
 
-  // CREATE NEW PASSWORD
-  if (pathname === '/create-password' && method === 'POST') {
-    const { email, newPassword } = req.body || {};
+  const normalizedEmail = email.toLowerCase().trim();
+  const enteredOtp = otp.toString().trim();
+  const storedOtp = otpStore.get(normalizedEmail)?.toString().trim();
+
+  console.log(`[OTP VERIFY] Email: ${normalizedEmail}`);
+  console.log(`Stored OTP: "${storedOtp}", Entered OTP: "${enteredOtp}"`);
+
+  if (!storedOtp || enteredOtp !== storedOtp) {
+    return res.status(400).json({ message: 'Invalid or expired OTP' });
+  }
+
+  otpStore.delete(normalizedEmail);
+  otpVerifiedStore.add(normalizedEmail);
+
+  console.log(`[OTP VERIFIED ✅] ${normalizedEmail}`);
+  return res.status(200).json({ message: 'OTP verified successfully' });
+}
+
+// CREATE NEW PASSWORD
+if (pathname === '/create-password' && method === 'POST') {
+  const { email, newPassword } = req.body || {};
 
     if (!email || !newPassword) {
       return res.status(400).json({ message: 'Email and new password are required' });
