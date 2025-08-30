@@ -46,8 +46,8 @@ const otpVerifiedStore = new Set();   // emails that passed OTP verification
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
-    user: 'mailtest@gmail.com',
-    pass: 'qpii npbr bcfs iodu',
+    user: 'vaibhavpandey331@gmail.com',     // YOUR email here
+    pass: 'qpii npbr bcfs iodu',       // Your generated Gmail App Password here
   },
 });
 
