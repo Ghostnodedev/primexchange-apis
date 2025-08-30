@@ -1,6 +1,6 @@
 import microCors from 'micro-cors';
 import { v4 as uuidv4 } from 'uuid';
-import { db } from './libdb.js';  // your DB connection
+import { db } from './libdb.js';
 import nodemailer from 'nodemailer';
 
 const cors = microCors({
@@ -25,10 +25,11 @@ async function setupTables() {
   `);
 
   await db.execute(`
-    CREATE TABLE IF NOT EXISTS otp_verification (
-      email TEXT PRIMARY KEY,
-      otp TEXT NOT NULL,
-      expires_at INTEGER NOT NULL  -- store expiry as UNIX timestamp (ms)
+    CREATE TABLE IF NOT EXISTS login (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      email TEXT NOT NULL,
+      password TEXT NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
   `);
 
@@ -36,12 +37,16 @@ async function setupTables() {
 }
 setupTables();
 
-// Email transporter
+// In-memory stores
+const otpStore = new Map();           // email -> otp string
+const otpVerifiedStore = new Set();   // emails that passed OTP check
+
+// Email transporter setup
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
     user: 'vaibhavpandey331@gmail.com',     // YOUR email here
-    pass: 'qpii npbr bcfs iodu',       // Your generated Gmail App Password here
+    pass: 'qpii npbr bcfs iodu',    // Your Gmail App Password here
   },
 });
 
@@ -51,7 +56,7 @@ const handler = async (req, res) => {
 
   if (method === 'OPTIONS') return res.status(200).end();
 
-  // Parse JSON body
+  // Parse JSON body if POST
   if (method === 'POST') {
     try {
       const buffers = [];
@@ -67,9 +72,10 @@ const handler = async (req, res) => {
   if (pathname === '/register' && method === 'POST') {
     const { name, email, username, password, confirmpassword, phone, age } = req.body || {};
 
-    if (!name || !email || !username || !password || !confirmpassword) {
+    if (!name || !email || !username || !password || !confirmpassword || !phone || !age) {
       return res.status(400).json({ message: 'Missing required fields' });
     }
+
     if (password !== confirmpassword) {
       return res.status(400).json({ message: 'Passwords do not match' });
     }
@@ -90,8 +96,8 @@ const handler = async (req, res) => {
 
   // LOGIN
   if (pathname === '/login' && method === 'POST') {
-    const { email, password } = req.body || {};
-    if (!email || !password) {
+    const { email, password , username , phone } = req.body || {};
+    if (!email || !password || !username || !phone) {
       return res.status(400).json({ message: 'Missing login fields' });
     }
 
@@ -125,40 +131,38 @@ const handler = async (req, res) => {
     try {
       const normalizedEmail = email.toLowerCase().trim();
 
-      // Check user exists
-      const userResult = await db.execute(
+      const result = await db.execute(
         `SELECT * FROM register WHERE email = ?`,
         [normalizedEmail]
       );
-      const users = userResult.rows || userResult;
+
+      const users = result.rows || result;
+
       if (!users || users.length === 0) {
         return res.status(404).json({ message: 'Email not registered' });
       }
 
-      // Generate OTP & expiry timestamp (5 minutes)
+      // Generate 6-digit OTP
       const otp = Math.floor(100000 + Math.random() * 900000).toString();
-      const expiresAt = Date.now() + 5 * 60 * 1000;
 
-      // Insert or replace OTP in otp_verification table
-      await db.execute(
-        `INSERT INTO otp_verification (email, otp, expires_at) VALUES (?, ?, ?)
-         ON CONFLICT(email) DO UPDATE SET otp=excluded.otp, expires_at=excluded.expires_at`,
-        [normalizedEmail, otp, expiresAt]
-      );
+      // Store OTP keyed by normalized email
+      otpStore.set(normalizedEmail, otp);
+      otpVerifiedStore.delete(normalizedEmail); // reset verification on new OTP
 
       console.log(`[OTP SENT] ${normalizedEmail}: ${otp}`);
 
-      // Send email
       const mailOptions = {
         from: `mailtest@gmail.com`,
         to: normalizedEmail,
         subject: 'Your OTP Code',
         text: `Your OTP code is ${otp}. It will expire in 5 minutes.`,
       };
+
       await transporter.sendMail(mailOptions);
 
       return res.status(200).json({ message: 'OTP sent successfully' });
     } catch (err) {
+      console.error('Error sending OTP:', err);
       return res.status(500).json({ message: 'Failed to send OTP', error: err.message });
     }
   }
@@ -172,40 +176,30 @@ const handler = async (req, res) => {
     }
 
     const normalizedEmail = email.toLowerCase().trim();
+    const enteredOtp = String(otp).trim();
 
-    try {
-      const result = await db.execute(
-        `SELECT otp, expires_at FROM otp_verification WHERE email = ?`,
-        [normalizedEmail]
-      );
+    // Debug: log all OTPs currently stored
+    console.log('[OTP VERIFY DEBUG] Current otpStore:', Array.from(otpStore.entries()));
 
-      const rows = result.rows || result;
+    const storedOtp = otpStore.get(normalizedEmail);
 
-      if (!rows || rows.length === 0) {
-        return res.status(400).json({ message: 'No OTP found for this email. Please request a new OTP.' });
-      }
+    console.log(`[OTP VERIFY] Email: ${normalizedEmail}, Stored OTP: '${storedOtp}', Entered OTP: '${enteredOtp}'`);
 
-      const { otp: storedOtp, expires_at } = rows[0];
-      const now = Date.now();
-
-      if (storedOtp !== otp.toString().trim()) {
-        return res.status(400).json({ message: 'Invalid OTP' });
-      }
-
-      if (now > expires_at) {
-        return res.status(400).json({ message: 'OTP expired. Please request a new OTP.' });
-      }
-
-      // OTP is valid and not expired - delete it now
-      await db.execute(`DELETE FROM otp_verification WHERE email = ?`, [normalizedEmail]);
-
-      // Store somewhere that OTP was verified (in memory for now)
-      otpVerifiedStore.add(normalizedEmail);
-
-      return res.status(200).json({ message: 'OTP verified successfully' });
-    } catch (err) {
-      return res.status(500).json({ message: 'DB error', error: err.message });
+    if (!storedOtp) {
+      return res.status(400).json({ message: 'No OTP found for this email. Please request a new OTP.' });
     }
+
+    if (storedOtp !== enteredOtp) {
+      return res.status(400).json({ message: 'Invalid OTP' });
+    }
+
+    // OTP matches
+    otpStore.delete(normalizedEmail);
+    otpVerifiedStore.add(normalizedEmail);
+
+    console.log(`[OTP VERIFIED ✅] ${normalizedEmail}`);
+
+    return res.status(200).json({ message: 'OTP verified successfully' });
   }
 
   // CREATE NEW PASSWORD
@@ -218,7 +212,6 @@ const handler = async (req, res) => {
 
     const normalizedEmail = email.toLowerCase().trim();
 
-    // Check if OTP verified (you can replace with your own persistent check)
     if (!otpVerifiedStore.has(normalizedEmail)) {
       return res.status(403).json({ message: 'OTP not verified. Please verify OTP first.' });
     }
@@ -235,8 +228,7 @@ const handler = async (req, res) => {
         return res.status(404).json({ message: 'User not found' });
       }
 
-      // Remove verified mark after password reset
-      otpVerifiedStore.delete(normalizedEmail);
+      otpVerifiedStore.delete(normalizedEmail); // cleanup after password reset
 
       return res.status(200).json({ message: 'Password updated successfully' });
     } catch (err) {
@@ -244,10 +236,8 @@ const handler = async (req, res) => {
     }
   }
 
-  // Default 404
+  // Default 404 for unknown routes
   return res.status(404).json({ message: 'Route not found' });
 };
-
-const otpVerifiedStore = new Set();
 
 export default cors(handler);
