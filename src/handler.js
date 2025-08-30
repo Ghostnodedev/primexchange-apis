@@ -1,6 +1,7 @@
+// src/handler.js
 import microCors from 'micro-cors';
 import { v4 as uuidv4 } from 'uuid';
-import { db } from './libdb.js';
+import { db } from './libdb.js';  // your DB connection here
 import nodemailer from 'nodemailer';
 
 const cors = microCors({
@@ -9,7 +10,7 @@ const cors = microCors({
   allowHeaders: ['Content-Type'],
 });
 
-// Setup your database tables
+// Setup your database tables (run once)
 async function setupTables() {
   await db.execute(`
     CREATE TABLE IF NOT EXISTS register (
@@ -37,18 +38,18 @@ async function setupTables() {
 }
 setupTables();
 
-// In-memory stores
-const otpStore = new Map();           // email -> otp string
-const otpVerifiedStore = new Set();   // emails that passed OTP check
+// In-memory store for OTPs — email -> array of OTPs
+const otpStore = new Map();
 
-// Email transporter setup
+// Setup nodemailer transporter
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
     user: 'vaibhavpandey331@gmail.com',     // YOUR email here
-    pass: 'qpii npbr bcfs iodu',    // Your Gmail App Password here
+    pass: 'qpii npbr bcfs iodu',       // Your generated Gmail App Password here
   },
 });
+
 
 const handler = async (req, res) => {
   const { method, url } = req;
@@ -68,14 +69,13 @@ const handler = async (req, res) => {
     }
   }
 
-  // REGISTER
+  // Register new user
   if (pathname === '/register' && method === 'POST') {
     const { name, email, username, password, confirmpassword, phone, age } = req.body || {};
 
-    if (!name || !email || !username || !password || !confirmpassword || !phone || !age) {
+    if (!name || !email || !username || !password || !confirmpassword) {
       return res.status(400).json({ message: 'Missing required fields' });
     }
-
     if (password !== confirmpassword) {
       return res.status(400).json({ message: 'Passwords do not match' });
     }
@@ -87,17 +87,16 @@ const handler = async (req, res) => {
         `INSERT INTO register (name, email, username, password, phone, age) VALUES (?, ?, ?, ?, ?, ?)`,
         [name, normalizedEmail, username, password, phone || '', age || null]
       );
-
       return res.status(201).json({ message: 'User registered successfully', user: { username, email: normalizedEmail } });
     } catch (err) {
       return res.status(400).json({ message: 'User already exists or DB error', error: err.message });
     }
   }
 
-  // LOGIN
+  // Login user
   if (pathname === '/login' && method === 'POST') {
-    const { email, password , username , phone } = req.body || {};
-    if (!email || !password || !username || !phone) {
+    const { email, password } = req.body || {};
+    if (!email || !password) {
       return res.status(400).json({ message: 'Missing login fields' });
     }
 
@@ -120,7 +119,21 @@ const handler = async (req, res) => {
     }
   }
 
-  // REQUEST OTP
+  // Get Crypto data
+  if (pathname === '/getcrypto' && method === 'GET') {
+    try {
+      const response = await fetch(
+        'https://data-api.coindesk.com/index/cc/v1/markets/instruments?market=ccix&instrument_status=ACTIVE'
+      );
+      const data = await response.json();
+      return res.status(200).json(data);
+    } catch (err) {
+      return res.status(500).json({ message: 'Failed to fetch crypto data' });
+    }
+  }
+
+  let storeotp = []
+  // Request OTP
   if (pathname === '/request-otp' && method === 'POST') {
     const { email } = req.body || {};
 
@@ -144,15 +157,20 @@ const handler = async (req, res) => {
 
       // Generate 6-digit OTP
       const otp = Math.floor(100000 + Math.random() * 900000).toString();
+      console.log("otp:", otp);
+      storeotp.push({email:normalizedEmail, otp:otp})
+      console.log("storeotp:", storeotp);
 
-      // Store OTP keyed by normalized email
-      otpStore.set(normalizedEmail, otp);
-      otpVerifiedStore.delete(normalizedEmail); // reset verification on new OTP
+      // Get current OTP array or empty
+      const otpArray = otpStore.get(normalizedEmail) || [];
+      otpArray.push(otp);
+      otpStore.set(normalizedEmail, otpArray);
 
-      console.log(`[OTP SENT] ${normalizedEmail}: ${otp}`);
+      console.log(`[OTP SEND] For ${normalizedEmail}, OTPs:`, otpArray);
 
+      // Send OTP email
       const mailOptions = {
-        from: `mailtest@gmail.com`,
+        from: `mailtest122000@gmail.com`,
         to: normalizedEmail,
         subject: 'Your OTP Code',
         text: `Your OTP code is ${otp}. It will expire in 5 minutes.`,
@@ -162,61 +180,59 @@ const handler = async (req, res) => {
 
       return res.status(200).json({ message: 'OTP sent successfully' });
     } catch (err) {
-      console.error('Error sending OTP:', err);
+      console.error('Error sending OTP email:', err);
       return res.status(500).json({ message: 'Failed to send OTP', error: err.message });
     }
   }
 
-  // VERIFY OTP
+  // Verify OTP
   if (pathname === '/verify-otp' && method === 'POST') {
-    const { email, otp } = req.body || {};
+    let { email, otp } = req.body || {};
 
     if (!email || !otp) {
       return res.status(400).json({ message: 'Email and OTP are required' });
     }
 
-    const normalizedEmail = email.toLowerCase().trim();
-    const enteredOtp = String(otp).trim();
+    email = email.toLowerCase().trim();
+    otp = otp.toString().trim();
 
-    // Debug: log all OTPs currently stored
-    console.log('[OTP VERIFY DEBUG] Current otpStore:', Array.from(otpStore.entries()));
-
-    const storedOtp = otpStore.get(normalizedEmail);
-
-    console.log(`[OTP VERIFY] Email: ${normalizedEmail}, Stored OTP: '${storedOtp}', Entered OTP: '${enteredOtp}'`);
-
-    if (!storedOtp) {
-      return res.status(400).json({ message: 'No OTP found for this email. Please request a new OTP.' });
+    const find = storeotp.find(item => item.email === email && item.otp === otp);
+    console.log(find);
+    if(find){
+      console.log(`[OTP VERIFY] Found OTP for ${email}:`, find);
     }
 
-    if (storedOtp !== enteredOtp) {
+    const otpArray = otpStore.get(email) || [];
+    console.log(`[OTP VERIFY] For ${email}, Stored OTPs:`, otpArray, 'Entered OTP:', otp);
+
+    const index = otpArray.indexOf(otp);
+    if (index > -1) {
+      // Remove the matched OTP
+      otpArray.splice(index, 1);
+      if (otpArray.length === 0) {
+        otpStore.delete(email);
+      } else {
+        otpStore.set(email, otpArray);
+      }
+      console.log(`[OTP VERIFY] OTP matched and removed.`);
+      return res.status(200).json({ message: 'OTP verified successfully' });
+    } else {
+      console.warn(`[OTP VERIFY] OTP invalid.`);
       return res.status(400).json({ message: 'Invalid OTP' });
     }
-
-    // OTP matches
-    otpStore.delete(normalizedEmail);
-    otpVerifiedStore.add(normalizedEmail);
-
-    console.log(`[OTP VERIFIED ✅] ${normalizedEmail}`);
-
-    return res.status(200).json({ message: 'OTP verified successfully' });
   }
 
-  // CREATE NEW PASSWORD
-  if (pathname === '/create-password' && method === 'POST') {
+  // Reset password
+  if (pathname === '/reset-password' && method === 'POST') {
     const { email, newPassword } = req.body || {};
 
     if (!email || !newPassword) {
       return res.status(400).json({ message: 'Email and new password are required' });
     }
 
-    const normalizedEmail = email.toLowerCase().trim();
-
-    if (!otpVerifiedStore.has(normalizedEmail)) {
-      return res.status(403).json({ message: 'OTP not verified. Please verify OTP first.' });
-    }
-
     try {
+      const normalizedEmail = email.toLowerCase().trim();
+
       const result = await db.execute(
         `UPDATE register SET password = ? WHERE email = ?`,
         [newPassword, normalizedEmail]
@@ -228,15 +244,13 @@ const handler = async (req, res) => {
         return res.status(404).json({ message: 'User not found' });
       }
 
-      otpVerifiedStore.delete(normalizedEmail); // cleanup after password reset
-
       return res.status(200).json({ message: 'Password updated successfully' });
     } catch (err) {
       return res.status(500).json({ message: 'DB error', error: err.message });
     }
   }
 
-  // Default 404 for unknown routes
+  // Default 404 response for unknown routes
   return res.status(404).json({ message: 'Route not found' });
 };
 
