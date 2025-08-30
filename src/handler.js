@@ -1,4 +1,3 @@
-// src/handler.js
 import microCors from 'micro-cors';
 import { v4 as uuidv4 } from 'uuid';
 import { db } from './libdb.js';
@@ -40,7 +39,7 @@ setupTables();
 
 // In-memory stores
 const otpStore = new Map();           // email -> otp
-const otpVerifiedStore = new Set();   // emails that passed OTP verification
+const otpVerifiedStore = new Set();   // verified emails
 
 // Email transporter
 const transporter = nodemailer.createTransport({
@@ -57,7 +56,7 @@ const handler = async (req, res) => {
 
   if (method === 'OPTIONS') return res.status(200).end();
 
-  // Parse JSON body
+  // Parse body if POST
   if (method === 'POST') {
     try {
       const buffers = [];
@@ -121,19 +120,6 @@ const handler = async (req, res) => {
     }
   }
 
-  // GET CRYPTO DATA
-  if (pathname === '/getcrypto' && method === 'GET') {
-    try {
-      const response = await fetch(
-        'https://data-api.coindesk.com/index/cc/v1/markets/instruments?market=ccix&instrument_status=ACTIVE'
-      );
-      const data = await response.json();
-      return res.status(200).json(data);
-    } catch (err) {
-      return res.status(500).json({ message: 'Failed to fetch crypto data' });
-    }
-  }
-
   // REQUEST OTP
   if (pathname === '/request-otp' && method === 'POST') {
     const { email } = req.body || {};
@@ -158,12 +144,12 @@ const handler = async (req, res) => {
 
       const otp = Math.floor(100000 + Math.random() * 900000).toString();
       otpStore.set(normalizedEmail, otp);
-      otpVerifiedStore.delete(normalizedEmail); // reset verified status
+      otpVerifiedStore.delete(normalizedEmail); // reset verification
 
-      console.log(`[OTP SENT] For ${normalizedEmail}: ${otp}`);
+      console.log(`[OTP SENT] ${normalizedEmail}: ${otp}`);
 
       const mailOptions = {
-        from: `mailtest122000@gmail.com`,
+        from: `mailtest@gmail.com`,
         to: normalizedEmail,
         subject: 'Your OTP Code',
         text: `Your OTP code is ${otp}. It will expire in 5 minutes.`,
@@ -173,7 +159,6 @@ const handler = async (req, res) => {
 
       return res.status(200).json({ message: 'OTP sent successfully' });
     } catch (err) {
-      console.error('Error sending OTP email:', err);
       return res.status(500).json({ message: 'Failed to send OTP', error: err.message });
     }
   }
@@ -189,17 +174,19 @@ const handler = async (req, res) => {
     const normalizedEmail = email.toLowerCase().trim();
     const storedOtp = otpStore.get(normalizedEmail);
 
+    console.log(`[OTP VERIFY] Email: ${normalizedEmail}, Stored: ${storedOtp}, Entered: ${otp}`);
+
     if (!storedOtp || storedOtp !== otp.toString().trim()) {
       return res.status(400).json({ message: 'Invalid or expired OTP' });
     }
 
-    otpStore.delete(normalizedEmail);
-    otpVerifiedStore.add(normalizedEmail);
+    otpStore.delete(normalizedEmail);          // remove OTP after use
+    otpVerifiedStore.add(normalizedEmail);     // mark as verified
 
     return res.status(200).json({ message: 'OTP verified successfully' });
   }
 
-  // CREATE NEW PASSWORD (AFTER OTP VERIFIED)
+  // CREATE NEW PASSWORD
   if (pathname === '/create-password' && method === 'POST') {
     const { email, newPassword } = req.body || {};
 
@@ -225,7 +212,7 @@ const handler = async (req, res) => {
         return res.status(404).json({ message: 'User not found' });
       }
 
-      otpVerifiedStore.delete(normalizedEmail); // Clean up after success
+      otpVerifiedStore.delete(normalizedEmail); // cleanup
 
       return res.status(200).json({ message: 'Password updated successfully' });
     } catch (err) {
@@ -233,7 +220,7 @@ const handler = async (req, res) => {
     }
   }
 
-  // 404 fallback
+  // Default 404
   return res.status(404).json({ message: 'Route not found' });
 };
 
