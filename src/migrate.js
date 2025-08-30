@@ -1,5 +1,5 @@
 // This script will add the columns to the "login" table
-import { db } from './libdb.js'; // Import the DB connection
+import { db } from '../libdb.js'; // Import the DB connection
 
 async function migrate() {
   try {
