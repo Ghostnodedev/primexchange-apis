@@ -288,11 +288,43 @@ const handler = async (req, res) => {
   }
 
   if(pathname === "account" && method === "post"){
-    
+      try {
+        const {accountno , ifsc ,holdername , bankname , accounttype} = req.body
+        if(!accountno || !ifsc || !holdername || !bankname || !accounttype){
+          return res.status(400).json({message : "missing required fields"})
+        }
+        const id = crypto.randomUUID()
+        console.log(id)
+        await db.execute({
+        sql: `
+          INSERT INTO account (id,holdername, accountno, ifsc, bankname, accounttype)
+          VALUES (? ,?, ?, ?, ?, ?)
+        `,
+        args: [id, holdername, accountno, ifsc, bankname, accounttype],
+      });
+
+      return res.status(201).json({ message: "✅ Account inserted successfully" });
+      } catch (error) {
+        
+      }
   }
+
+  if (pathname === "/gacc" && req.method === "GET") {
+    try {
+      const result = await db.execute("SELECT * FROM bank_accounts");
+      return res.status(200).json({ data: result.rows });
+    } catch (error) {
+      return res.status(500).json({ error: error.message });
+    }
+  }
+
+  res.setHeader("Allow", ["POST", "GET"]);
+  res.status(405).end(`Method ${req.method} Not Allowed`);
+}
+
+
 
   // Default 404 response for unknown routes
   return res.status(404).json({ message: 'Route not found' });
-};
 
 export default cors(handler);
