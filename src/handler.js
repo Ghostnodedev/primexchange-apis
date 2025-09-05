@@ -38,6 +38,19 @@ async function setupTables() {
     );
   `);
 
+    await db.execute(`
+    CREATE TABLE IF NOT EXISTS account (
+      id TEXT PRIMARY KEY,
+      holdername TEXT NOT NULL,
+      accountno TEXT NOT NULL,
+      ifsc TEXT NOT NULL,
+      bankname TEXT NOT NULL,
+      accounttype TEXT NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
+
+
   // Add otp column if it doesn't exist
   try {
     await db.execute(`ALTER TABLE login ADD COLUMN otp TEXT`);
@@ -289,12 +302,12 @@ const handler = async (req, res) => {
 if (pathname === "/account" && method === "POST") {
   try {
     const { accountno, ifsc, holdername, bankname, accounttype } = req.body;
-    console.log(req.body)
+
     if (!accountno || !ifsc || !holdername || !bankname || !accounttype) {
-      res.status(400).json({ message: "❌ Missing required fields" });
+      return res.status(400).json({ message: "❌ Missing required fields" });
     }
 
-    const id = crypto.randomUUID();
+    const id = uuidv4(); // use uuid package you already imported
     console.log("Generated ID:", id);
 
     await db.execute({
@@ -305,12 +318,13 @@ if (pathname === "/account" && method === "POST") {
       args: [id, holdername, accountno, ifsc, bankname, accounttype],
     });
 
-    res.status(201).json({ message: "✅ Account inserted successfully" });
+    return res.status(201).json({ message: "✅ Account inserted successfully" });
   } catch (error) {
     console.error("DB insert error:", error);
-    res.status(500).json({ error: "Internal server error" });
+    return res.status(500).json({ error: "Internal server error" });
   }
 }
+
 
 
   if (pathname === "/gacc" && req.method === "GET") {
