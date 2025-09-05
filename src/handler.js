@@ -353,10 +353,10 @@ if (pathname === "/account" && method === "POST") {
     }
     return; // inside handler ✅
   }
-}
+
 
 
 // Default 404 response for unknown routes
 return res.status(404).json({ message: "Route not found" });
-
+}
 export default cors(handler);
