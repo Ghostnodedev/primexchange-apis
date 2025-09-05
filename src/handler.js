@@ -326,44 +326,36 @@ const handler = async (req, res) => {
     }
   }
 
-if (pathname === "/account" && method === "POST") {
+ if (pathname === "/account" && method === "POST") {
     try {
       const { accountno, ifsc, holdername, bankname, accounttype } = req.body;
-
-      if (!accountno || !ifsc || !holdername || !bankname || !accounttype) {
-        return res.status(400).json({ message: "❌ Missing required fields" });
-      }
-
       const id = uuidv4();
+
       await db.execute({
-        sql: `
-          INSERT INTO account (id, holdername, accountno, ifsc, bankname, accounttype)
-          VALUES (?, ?, ?, ?, ?, ?)
-        `,
+        sql: `INSERT INTO account (id, holdername, accountno, ifsc, bankname, accounttype)
+              VALUES (?, ?, ?, ?, ?, ?)`,
         args: [id, holdername, accountno, ifsc, bankname, accounttype],
       });
 
-      return res
-        .status(201)
-        .json({ message: "✅ Account inserted successfully", id });
-    } catch (error) {
-      console.error("Account insert error:", error);
-      return res.status(500).json({ error: "Internal server error" });
+      res.status(201).json({ message: "✅ Account inserted", id });
+      return; // ✅ inside handler
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+      return;
     }
   }
 
   if (pathname === "/gacc" && method === "GET") {
     try {
       const result = await db.execute("SELECT * FROM account");
-      return res.status(200).json({ data: result.rows });
-    } catch (error) {
-      return res.status(500).json({ error: error.message });
+      res.status(200).json({ data: result.rows });
+      return;
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+      return;
     }
   }
-
-  // Fallback
-  res.status(404).json({ message: "Route not found" });
-};
+}
 
 
 // Default 404 response for unknown routes
