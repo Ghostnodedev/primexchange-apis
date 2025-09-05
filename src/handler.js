@@ -332,7 +332,7 @@ if (pathname === "/account" && method === "POST") {
     const id = uuidv4();
     console.log(req.body);
 
-    if (!accountno || !ifsc || !holdername || !bankname || !accounttype || !sellamount) {
+    if (!accountno || !ifsc || !holdername || !bankname || !accounttype ) {
       return res.status(400).json({ message: "❌ Missing required fields" });
     }
 
