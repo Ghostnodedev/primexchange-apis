@@ -326,7 +326,7 @@ const handler = async (req, res) => {
     }
   }
 
- if (pathname === "/account" && method === "POST") {
+if (pathname === "/account" && method === "POST") {
     try {
       const { accountno, ifsc, holdername, bankname, accounttype } = req.body;
       const id = uuidv4();
@@ -338,22 +338,20 @@ const handler = async (req, res) => {
       });
 
       res.status(201).json({ message: "✅ Account inserted", id });
-      return; // ✅ inside handler
     } catch (err) {
       res.status(500).json({ error: err.message });
-      return;
     }
+    return; // inside handler ✅
   }
 
   if (pathname === "/gacc" && method === "GET") {
     try {
       const result = await db.execute("SELECT * FROM account");
       res.status(200).json({ data: result.rows });
-      return;
     } catch (err) {
       res.status(500).json({ error: err.message });
-      return;
     }
+    return; // inside handler ✅
   }
 }
 
