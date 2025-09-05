@@ -96,7 +96,6 @@ const handler = async (req, res) => {
   // Register new user
   if (pathname === '/register' && method === 'POST') {
     const { name, email, username, password, confirmpassword, phone, age } = req.body || {};
-
     if (!name || !email || !username || !password || !confirmpassword) {
       return res.status(400).json({ message: 'Missing required fields' });
     }
@@ -290,10 +289,9 @@ const handler = async (req, res) => {
 if (pathname === "/account" && method === "POST") {
   try {
     const { accountno, ifsc, holdername, bankname, accounttype } = req.body;
-
+    console.log(req.body)
     if (!accountno || !ifsc || !holdername || !bankname || !accounttype) {
       res.status(400).json({ message: "❌ Missing required fields" });
-      return; // this return is ok (exits the handler function)
     }
 
     const id = crypto.randomUUID();
