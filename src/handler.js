@@ -293,7 +293,7 @@ if (pathname === "/account" && method === "POST") {
 
     if (!accountno || !ifsc || !holdername || !bankname || !accounttype) {
       res.status(400).json({ message: "❌ Missing required fields" });
-      return; // stop execution
+      return; // this return is ok (exits the handler function)
     }
 
     const id = crypto.randomUUID();
@@ -307,13 +307,12 @@ if (pathname === "/account" && method === "POST") {
       args: [id, holdername, accountno, ifsc, bankname, accounttype],
     });
 
-    return res.status(201).json({ message: "✅ Account inserted successfully" });
+    res.status(201).json({ message: "✅ Account inserted successfully" });
   } catch (error) {
     console.error("DB insert error:", error);
-    return res.status(500).json({ error: "Internal server error" });
+    res.status(500).json({ error: "Internal server error" });
   }
 }
-
 
 
   if (pathname === "/gacc" && req.method === "GET") {
