@@ -326,7 +326,7 @@ const handler = async (req, res) => {
     }
   }
 
-  if (pathname === "/account" && method === "POST") {
+if (pathname === "/account" && method === "POST") {
     try {
       const { accountno, ifsc, holdername, bankname, accounttype } = req.body;
 
@@ -345,24 +345,26 @@ const handler = async (req, res) => {
 
       return res
         .status(201)
-        .json({ message: "✅ Account inserted successfully" });
+        .json({ message: "✅ Account inserted successfully", id });
     } catch (error) {
       console.error("Account insert error:", error);
       return res.status(500).json({ error: "Internal server error" });
     }
   }
 
-  if (pathname === "/gacc" && req.method === "GET") {
+  if (pathname === "/gacc" && method === "GET") {
     try {
-      const result = await db.execute("SELECT * FROM bank_accounts");
+      const result = await db.execute("SELECT * FROM account");
       return res.status(200).json({ data: result.rows });
     } catch (error) {
       return res.status(500).json({ error: error.message });
     }
   }
 
-  res.setHeader("Allow", ["POST", "GET"]);
-  res.status(405).end(`Method ${req.method} Not Allowed`);
+  // Fallback
+  res.status(404).json({ message: "Route not found" });
+};
+
 };
 
 // Default 404 response for unknown routes
