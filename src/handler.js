@@ -3,6 +3,7 @@ import microCors from 'micro-cors';
 import { v4 as uuidv4 } from 'uuid';
 import { db } from './libdb.js';  // your DB connection here
 import nodemailer from 'nodemailer';
+import { Account } from 'aws-sdk';
 
 const cors = microCors({
   origin: '*',
@@ -284,6 +285,10 @@ const handler = async (req, res) => {
     } catch (err) {
       return res.status(500).json({ message: 'DB error', error: err.message });
     }
+  }
+
+  if(pathname === "account" && method === "post"){
+    
   }
 
   // Default 404 response for unknown routes
