@@ -287,7 +287,7 @@ const handler = async (req, res) => {
     }
   }
 
-if (pathname === "account" && method === "POST") {
+if (pathname === "/account" && method === "POST") {
   try {
     const { accountno, ifsc, holdername, bankname, accounttype } = req.body;
 
@@ -307,12 +307,13 @@ if (pathname === "account" && method === "POST") {
       args: [id, holdername, accountno, ifsc, bankname, accounttype],
     });
 
-    res.status(201).json({ message: "✅ Account inserted successfully" });
+    return res.status(201).json({ message: "✅ Account inserted successfully" });
   } catch (error) {
     console.error("DB insert error:", error);
-    res.status(500).json({ error: "Internal server error" });
+    return res.status(500).json({ error: "Internal server error" });
   }
 }
+
 
 
   if (pathname === "/gacc" && req.method === "GET") {
