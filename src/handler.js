@@ -326,22 +326,49 @@ const handler = async (req, res) => {
   }
 
 if (pathname === "/account" && method === "POST") {
-    try {
-      const { accountno, ifsc, holdername, bankname, accounttype } = req.body;
-      const id = uuidv4();
+  try {
+    const { accountno, ifsc, holdername, bankname, accounttype } = req.body;
+    const id = uuidv4();
+    console.log(req.body);
 
-      await db.execute({
-        sql: `INSERT INTO account (id, holdername, accountno, ifsc, bankname, accounttype)
-              VALUES (?, ?, ?, ?, ?, ?)`,
-        args: [id, holdername, accountno, ifsc, bankname, accounttype],
-      });
-
-      res.status(201).json({ message: "✅ Account inserted", id });
-    } catch (err) {
-      res.status(500).json({ error: err.message });
+    if (!accountno || !ifsc || !holdername || !bankname || !accounttype) {
+      return res.status(400).json({ message: "❌ Missing required fields" });
     }
-    return; // inside handler ✅
+
+    // ✅ Validation patterns
+    const IFSC_REGEX = /^[A-Z]{4}0[0-9]{6}$/;
+    const ACCOUNT_REGEX = /^[0-9]{9,18}$/;
+
+    // ✅ Validate Account Number
+    if (!ACCOUNT_REGEX.test(accountno)) {
+      return res.status(400).json({
+        message:
+          "❌ Invalid Account Number (must be 9–18 digits and start with a number)",
+      });
+    }
+
+    // ✅ Validate IFSC Code
+    if (!IFSC_REGEX.test(ifsc)) {
+      return res.status(400).json({
+        message:
+          "❌ Invalid IFSC Code (must be 11 characters, e.g. SBIN0123456)",
+      });
+    }
+
+    // ✅ Insert into DB
+    await db.execute({
+      sql: `INSERT INTO account (id, holdername, accountno, ifsc, bankname, accounttype)
+            VALUES (?, ?, ?, ?, ?, ?)`,
+      args: [id, holdername, accountno, ifsc, bankname, accounttype],
+    });
+
+    res.status(201).json({ message: "✅ Account inserted", id });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
+  return; // inside handler ✅
+}
+
 
   if (pathname === "/gacc" && method === "GET") {
     try {
