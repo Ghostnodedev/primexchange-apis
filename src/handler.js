@@ -45,6 +45,7 @@ async function setupTables() {
       ifsc TEXT NOT NULL,
       bankname TEXT NOT NULL,
       accounttype TEXT NOT NULL,
+      sellamount INTEGER DEFAULT 0,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
   `);
@@ -327,11 +328,11 @@ const handler = async (req, res) => {
 
 if (pathname === "/account" && method === "POST") {
   try {
-    const { accountno, ifsc, holdername, bankname, accounttype } = req.body;
+    const { accountno, ifsc, holdername, bankname, accounttype, sellamount } = req.body;
     const id = uuidv4();
     console.log(req.body);
 
-    if (!accountno || !ifsc || !holdername || !bankname || !accounttype) {
+    if (!accountno || !ifsc || !holdername || !bankname || !accounttype || !sellamount) {
       return res.status(400).json({ message: "❌ Missing required fields" });
     }
 
@@ -357,9 +358,9 @@ if (pathname === "/account" && method === "POST") {
 
     // ✅ Insert into DB
     await db.execute({
-      sql: `INSERT INTO account (id, holdername, accountno, ifsc, bankname, accounttype)
-            VALUES (?, ?, ?, ?, ?, ?)`,
-      args: [id, holdername, accountno, ifsc, bankname, accounttype],
+      sql: `INSERT INTO account (id, holdername, accountno, ifsc, bankname, accounttype, sellamount)
+            VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      args: [id, holdername, accountno, ifsc, bankname, accounttype, 0],
     });
 
     res.status(201).json({ message: "✅ Account inserted", id });
