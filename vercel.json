@@ -13,6 +13,8 @@
     { "src": "/request-otp", "methods": ["POST", "OPTIONS"], "dest": "/src/handler.js" },
     { "src": "/verify-otp", "methods": ["POST", "OPTIONS"], "dest": "/src/handler.js" },
     { "src": "/reset-password", "methods": ["POST", "OPTIONS"], "dest": "/src/handler.js" },
-    { "src": "/test", "methods": ["GET", "OPTIONS"], "dest": "/src/handler.js" }
+    { "src": "/account", "methods": ["POST", "OPTIONS"], "dest": "/src/handler.js" },
+    { "src": "/gacc", "methods": ["GET", "OPTIONS"], "dest": "/src/handler.js" }
+
   ]
 }
