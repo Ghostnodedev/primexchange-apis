@@ -365,7 +365,6 @@ if (pathname === "/account" && method === "POST") {
   res.status(404).json({ message: "Route not found" });
 };
 
-};
 
 // Default 404 response for unknown routes
 return res.status(404).json({ message: "Route not found" });
