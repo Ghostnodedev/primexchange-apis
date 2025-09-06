@@ -330,11 +330,10 @@ const handler = async (req, res) => {
 
 if (pathname === "/account" && method === "POST") {
   try {
-    const { accountno, ifsc, holdername, bankname, accounttype, sellamount } = req.body;
+    const { accountno, ifsc, holdername, bankname, accounttype, sellamount, email } = req.body;
     const id = uuidv4();
-    console.log(req.body);
 
-    if (!accountno || !ifsc || !holdername || !bankname || !accounttype ) {
+    if (!accountno || !ifsc || !holdername || !bankname || !accounttype || !email) {
       return res.status(400).json({ message: "❌ Missing required fields" });
     }
 
@@ -342,44 +341,45 @@ if (pathname === "/account" && method === "POST") {
     const IFSC_REGEX = /^[A-Z]{4}0[0-9]{6}$/;
     const ACCOUNT_REGEX = /^[0-9]{9,18}$/;
 
-    // ✅ Validate Account Number
     if (!ACCOUNT_REGEX.test(accountno)) {
       return res.status(400).json({
-        message:
-          "❌ Invalid Account Number (must be 9–18 digits and start with a number)",
+        message: "❌ Invalid Account Number (must be 9–18 digits)",
       });
     }
 
-    // ✅ Validate IFSC Code
     if (!IFSC_REGEX.test(ifsc)) {
       return res.status(400).json({
-        message:
-          "❌ Invalid IFSC Code (must be 11 characters, e.g. SBIN0123456)",
+        message: "❌ Invalid IFSC Code (must be 11 characters, e.g. SBIN0123456)",
       });
     }
 
     // ✅ Insert into DB
     await db.execute({
-      sql: `INSERT INTO account (id, holdername, accountno, ifsc, bankname, accounttype, sellamount, emailid)
-            VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      args: [id, holdername, accountno, ifsc, bankname, accounttype, sellamount || 0, req.body.emailid],
+      sql: `INSERT INTO account (id, holdername, accountno, ifsc, bankname, accounttype, sellamount, email)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      args: [id, holdername, accountno, ifsc, bankname, accounttype, sellamount || 0, email.toLowerCase()],
     });
 
     res.status(201).json({ message: "✅ Account inserted", id });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
-  return; // inside handler ✅
+  return;
 }
 
-
+// ---------------- GET /gacc ----------------
+// Only fetch accounts for the given email
 if (pathname === "/gacc" && method === "GET") {
   try {
-    const { user_id } = req.query; // or parse from headers/body
-    if (!user_id) return res.status(400).json({ message: "Missing user_id" });
+    const email = req.query.email; // frontend must send ?email=user@example.com
+    if (!email) return res.status(400).json({ message: "Missing email" });
 
-    const result = await db.execute(`SELECT * FROM account WHERE user_id = ?`, [user_id]);
-    res.status(200).json({ data: result.rows });
+    const result = await db.execute(
+      `SELECT * FROM account WHERE email = ?`,
+      [email.toLowerCase()]
+    );
+
+    res.status(200).json({ data: result.rows || result });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
