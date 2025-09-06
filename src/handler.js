@@ -37,6 +37,7 @@ async function setupTables() {
     );
   `);
 
+await db.execute(`DROP TABLE IF EXISTS account`);
 await db.execute(`
   CREATE TABLE IF NOT EXISTS account (
     id TEXT PRIMARY KEY,
@@ -46,10 +47,11 @@ await db.execute(`
     bankname TEXT NOT NULL,
     accounttype TEXT NOT NULL,
     sellamount INTEGER DEFAULT 0,
-    email TEXT UNIQUE NOT NULL,  
+    email TEXT NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   );
 `);
+
 
 
   // Add otp column if it doesn't exist
