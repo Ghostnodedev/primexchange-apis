@@ -45,7 +45,7 @@ async function setupTables() {
       ifsc TEXT NOT NULL,
       bankname TEXT NOT NULL,
       accounttype TEXT NOT NULL,
-      sellamount TEXT,
+      sellamount INTEGER DEFAULT 0,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
   `);
@@ -360,7 +360,7 @@ if (pathname === "/account" && method === "POST") {
     await db.execute({
       sql: `INSERT INTO account (id, holdername, accountno, ifsc, bankname, accounttype, sellamount)
             VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      args: [id, holdername, accountno, ifsc, bankname, accounttype, sellamount],
+      args: [id, holdername, accountno, ifsc, bankname, accounttype, sellamount || 0],
     });
 
     res.status(201).json({ message: "✅ Account inserted", id });
