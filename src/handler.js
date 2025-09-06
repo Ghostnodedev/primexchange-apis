@@ -37,18 +37,20 @@ async function setupTables() {
     );
   `);
 
-  await db.execute(`
-    CREATE TABLE IF NOT EXISTS account (
-      id TEXT PRIMARY KEY,
-      holdername TEXT NOT NULL,
-      accountno TEXT NOT NULL,
-      ifsc TEXT NOT NULL,
-      bankname TEXT NOT NULL,
-      accounttype TEXT NOT NULL,
-      sellamount INTEGER DEFAULT 0,
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    );
-  `);
+await db.execute(`
+  CREATE TABLE IF NOT EXISTS account (
+    id TEXT PRIMARY KEY,
+    holdername TEXT NOT NULL,
+    accountno TEXT NOT NULL,
+    ifsc TEXT NOT NULL,
+    bankname TEXT NOT NULL,
+    accounttype TEXT NOT NULL,
+    sellamount INTEGER DEFAULT 0,
+    email TEXT UNIQUE NOT NULL,  
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  );
+`);
+
 
   // Add otp column if it doesn't exist
   try {
@@ -358,9 +360,9 @@ if (pathname === "/account" && method === "POST") {
 
     // ✅ Insert into DB
     await db.execute({
-      sql: `INSERT INTO account (id, holdername, accountno, ifsc, bankname, accounttype, sellamount)
+      sql: `INSERT INTO account (id, holdername, accountno, ifsc, bankname, accounttype, sellamount, emailid)
             VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      args: [id, holdername, accountno, ifsc, bankname, accounttype, sellamount || 0],
+      args: [id, holdername, accountno, ifsc, bankname, accounttype, sellamount || 0, req.body.emailid],
     });
 
     res.status(201).json({ message: "✅ Account inserted", id });
@@ -371,15 +373,18 @@ if (pathname === "/account" && method === "POST") {
 }
 
 
-  if (pathname === "/gacc" && method === "GET") {
-    try {
-      const result = await db.execute("SELECT * FROM account");
-      res.status(200).json({ data: result.rows });
-    } catch (err) {
-      res.status(500).json({ error: err.message });
-    }
-    return; // inside handler ✅
+if (pathname === "/gacc" && method === "GET") {
+  try {
+    const { user_id } = req.query; // or parse from headers/body
+    if (!user_id) return res.status(400).json({ message: "Missing user_id" });
+
+    const result = await db.execute(`SELECT * FROM account WHERE user_id = ?`, [user_id]);
+    res.status(200).json({ data: result.rows });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
+  return;
+}
 
 
 
