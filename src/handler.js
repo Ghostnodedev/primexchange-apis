@@ -53,16 +53,18 @@ await db.execute(`
 `);
 
 await db.execute(`
-  CREATE TABLE IF NOT EXISTS PROFILE (
+  CREATE TABLE IF NOT EXISTS profile (
     id TEXT PRIMARY KEY,
-    email TEXT UNIQUE NOT NULL,
-    username TEXT,
-    totalamount INTEGER DEFAULT 0,
-    depositamount INTEGER DEFAULT 0,
-    sellamount INTEGER DEFAULT 0,
-    status TEXT,
+    email TEXT NOT NULL,
+    username TEXT NOT NULL,
+    totalamount REAL NOT NULL,
+    depositamount REAL NOT NULL,
+    sellamount REAL DEFAULT 0,
+    status TEXT DEFAULT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-)`)
+  )
+`);
+
 
 
 
