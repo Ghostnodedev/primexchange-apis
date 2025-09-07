@@ -52,6 +52,18 @@ await db.execute(`
   );
 `);
 
+await db.execute(`
+  CREATE TABLE IF NOT EXISTS PROFILE (
+    id TEXT PRIMARY KEY,
+    email TEXT UNIQUE NOT NULL,
+    username TEXT,
+    totalamount INTEGER DEFAULT 0,
+    depositamount INTEGER DEFAULT 0,
+    sellamount INTEGER DEFAULT 0,
+    status TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+)`)
+
 
 
   // Add otp column if it doesn't exist
@@ -388,7 +400,47 @@ if (pathname === "/gacc" && method === "GET") {
   return;
 }
 
+if (pathname === "/profile" && method === "POST") {
+  try {
+    const {email, username, totalamount, depositamount, sellamount} = req.body
+    console.log(req.body)
+    if(!email || !username || !totalamount || !depositamount){
+      return res.status(400).json({message: "Missing required fields"})
+    }
+    const id = uuidv4();
+    console.log(id)
+    try {
+      await db.execute({
+        sql: `INSERT INTO profile (id, email, username, totalamount, depositamount, sellamount)
+              VALUES (?, ?, ?, ?, ?, ?)`,
+        args: [id, email.toLowerCase(), username, totalamount, depositamount, sellamount],
+      });
+      return res.status(201).json({ message: "Profile created", id });
+    } catch (error) {
+      
+    }
+   } catch (error) {
+    
+  }
+}
 
+// get profile by email
+
+if (pathname === "/gprofile" && method === "GET") {
+  try {
+    const email = req.query.email;
+    console.log("email is :",email)
+    if (!email) return res.status(400).json({ message: "Missing email" });
+
+    const result = await db.execute(
+      `SELECT * FROM profile WHERE email = ?`,
+      [email.toLowerCase()]
+    );
+    res.status(200).json({ data: result.rows || result });
+  } catch (error) {
+    
+  }
+}
 
 // Default 404 response for unknown routes
 return res.status(404).json({ message: "Route not found" });
