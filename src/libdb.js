@@ -6,6 +6,7 @@ export const db = createClient({
 });
 
 async function createTables() {
+  await db.execute(`DROP TABLE IF EXISTS account`);
 await db.execute(`
   CREATE TABLE IF NOT EXISTS profile (
     id TEXT PRIMARY KEY,
@@ -15,6 +16,7 @@ await db.execute(`
     depositamount REAL NOT NULL,
     sellamount REAL DEFAULT 0,
     status TEXT DEFAULT 'active',
+    Txid: TEXT DEFAULT ,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   )
 `);
