@@ -5,7 +5,19 @@ export const db = createClient({
   authToken: process.env.TURSO_AUTH_TOKEN,
 });
 
-async function createTables() {
+async function createTable() {
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS bank_accounts (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      holder_name TEXT NOT NULL,
+      account_number TEXT NOT NULL,
+      ifsc_code TEXT NOT NULL,
+      bank_name TEXT NOT NULL,
+      account_type TEXT NOT NULL
+    )
+  `);
+  console.log("✅ bank_accounts table created successfully");
+
   await db.execute(`DROP TABLE IF EXISTS account`);
 await db.execute(`
   CREATE TABLE IF NOT EXISTS profile (
@@ -23,4 +35,4 @@ await db.execute(`
 }
 
 
-createTables().catch(console.error);
+createTable().catch(console.error);
