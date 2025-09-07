@@ -13,8 +13,8 @@ await db.execute(`
     totalamount REAL NOT NULL,
     depositamount REAL NOT NULL,
     sellamount REAL DEFAULT 0,
-    status TEXT DEFAULT ,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    status TEXT DEFAULT 'active',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   )
 `);
 
