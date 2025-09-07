@@ -402,43 +402,60 @@ if (pathname === "/gacc" && method === "GET") {
 
 if (pathname === "/profile" && method === "POST") {
   try {
-    const {email, username, totalamount, depositamount, sellamount} = req.body
-    console.log(req.body)
-    if(!email || !username || !totalamount || !depositamount){
-      return res.status(400).json({message: "Missing required fields"})
+    const { email, username, totalamount, depositamount, sellamount } = req.body;
+    console.log("Incoming payload:", req.body);
+
+    // Validate required fields
+    if (!email || !username || !totalamount || !depositamount) {
+      return res.status(400).json({ message: "Missing required fields" });
     }
+
     const id = uuidv4();
-    console.log(id)
+
     try {
       await db.execute({
         sql: `INSERT INTO profile (id, email, username, totalamount, depositamount, sellamount)
               VALUES (?, ?, ?, ?, ?, ?)`,
-        args: [id, email.toLowerCase(), username, totalamount, depositamount, sellamount],
+        args: [
+          id,
+          email.toLowerCase(),
+          username,
+          totalamount,
+          depositamount,
+          sellamount || 0, // default to 0 if missing
+        ],
       });
+
       return res.status(201).json({ message: "Profile created", id });
-    } catch (error) {
-      
+    } catch (dbError) {
+      console.error("DB insert error:", dbError);
+      return res.status(500).json({ message: "Database error" });
     }
-   } catch (error) {
-    
+  } catch (error) {
+    console.error("Server error:", error);
+    return res.status(500).json({ message: "Internal server error" });
   }
 }
 
-// get profile by email
-
+// Get profile by email
 if (pathname === "/gprofile" && method === "GET") {
   try {
-    const email = req.query.email;
-    console.log("email is :",email)
-    if (!email) return res.status(400).json({ message: "Missing email" });
+    const email = req.query?.email;
+    console.log("Email query param:", email);
+
+    if (!email) {
+      return res.status(400).json({ message: "Missing email" });
+    }
 
     const result = await db.execute(
       `SELECT * FROM profile WHERE email = ?`,
       [email.toLowerCase()]
     );
-    res.status(200).json({ data: result.rows || result });
+
+    return res.status(200).json({ data: result.rows || result });
   } catch (error) {
-    
+    console.error("DB fetch error:", error);
+    return res.status(500).json({ message: "Internal server error" });
   }
 }
 
