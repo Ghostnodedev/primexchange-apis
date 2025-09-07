@@ -18,7 +18,7 @@ async function createTable() {
   // `);
   // console.log("✅ bank_accounts table created successfully");
 
-  await db.execute(`DROP TABLE IF EXISTS account`);
+  // await db.execute(`DROP TABLE IF EXISTS account`);
 await db.execute(`
   CREATE TABLE IF NOT EXISTS profile (
     id TEXT PRIMARY KEY,
