@@ -7,7 +7,7 @@ export const db = createClient({
 
 async function createTable() {
   await db.execute(`
-    CREATE TABLE IF NOT EXISTS bank_accounts (
+    CREATE TABLE IF NOT EXISTS account (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       holder_name TEXT NOT NULL,
       account_number TEXT NOT NULL,
