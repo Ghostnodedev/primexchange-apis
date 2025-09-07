@@ -5,6 +5,7 @@ export const db = createClient({
   authToken: process.env.TURSO_AUTH_TOKEN,
 });
 
+async function createTables() {
 await db.execute(`
   CREATE TABLE IF NOT EXISTS profile (
     id TEXT PRIMARY KEY,
@@ -17,6 +18,7 @@ await db.execute(`
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   )
 `);
+}
 
 
-createTable().catch(console.error);
+createTables().catch(console.error);
