@@ -37,7 +37,7 @@ async function setupTables() {
     );
   `);
 
-await db.execute(`DROP TABLE IF EXISTS account`);
+// await db.execute(`DROP TABLE IF EXISTS account`);
 await db.execute(`
   CREATE TABLE IF NOT EXISTS account (
     id TEXT PRIMARY KEY,
