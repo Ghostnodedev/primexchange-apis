@@ -151,37 +151,59 @@ const handler = async (req, res) => {
   }
 
   // Login user
-  if (pathname === "/login" && method === "POST") {
-    const { email, password } = req.body || {};
-    if (!email || !password) {
-      return res.status(400).json({ message: "Missing login fields" });
-    }
-
-    try {
-      const normalizedEmail = email.toLowerCase().trim();
-
-      const result = await db.execute(
-        `SELECT * FROM register WHERE email = ? AND password = ?`,
-        [normalizedEmail, password]
-      );
-
-      const users = result.rows || result;
-
-      if (!users || users.length === 0)
-        return res.status(401).json({ message: "Invalid credentials" });
-
-      const token = uuidv4();
-      return res
-        .status(200)
-        .json({
-          message: "Login successful",
-          user: { email: normalizedEmail },
-          token,
-        });
-    } catch (err) {
-      return res.status(500).json({ message: "DB error", error: err.message });
-    }
+// Login user (with OTP flow)
+if (pathname === "/login" && method === "POST") {
+  const { email, password } = req.body || {};
+  if (!email || !password) {
+    return res.status(400).json({ message: "Missing login fields" });
   }
+
+  try {
+    const normalizedEmail = email.toLowerCase().trim();
+
+    // Step 1: Verify credentials
+    const result = await db.execute(
+      `SELECT * FROM register WHERE email = ? AND password = ?`,
+      [normalizedEmail, password]
+    );
+
+    const users = result.rows || result;
+    if (!users || users.length === 0) {
+      return res.status(401).json({ message: "Invalid credentials" });
+    }
+
+    // Step 2: Generate OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = Date.now() + 5 * 60 * 1000; // 5 min expiry
+
+    // Step 3: Store OTP in login table
+    await db.execute(
+      `UPDATE login SET otp = ?, otp_expires_at = ? WHERE email = ?`,
+      [otp, expiresAt, normalizedEmail]
+    );
+
+    // Step 4: Send OTP via email
+    const mailOptions = {
+      from: `mailtest@gmail.com`,
+      to: normalizedEmail,
+      subject: "Your OTP Code",
+      text: `Your OTP code is ${otp}. It will expire in 5 minutes.`,
+    };
+    await transporter.sendMail(mailOptions);
+
+    console.log(`[LOGIN OTP SENT] For ${normalizedEmail}, OTP: ${otp}`);
+
+    // Step 5: Ask user to verify OTP
+    return res.status(200).json({
+      message: "OTP sent to your email. Please verify to complete login.",
+      email: normalizedEmail,
+    });
+  } catch (err) {
+    console.error("Login error:", err);
+    return res.status(500).json({ message: "DB error", error: err.message });
+  }
+}
+
 
   // Request OTP
   if (pathname === "/request-otp" && method === "POST") {
