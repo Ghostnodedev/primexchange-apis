@@ -151,59 +151,37 @@ const handler = async (req, res) => {
   }
 
   // Login user
-// Login user (with OTP flow)
-if (pathname === "/login" && method === "POST") {
-  const { email, password } = req.body || {};
-  if (!email || !password) {
-    return res.status(400).json({ message: "Missing login fields" });
-  }
-
-  try {
-    const normalizedEmail = email.toLowerCase().trim();
-
-    // Step 1: Verify credentials
-    const result = await db.execute(
-      `SELECT * FROM register WHERE email = ? AND password = ?`,
-      [normalizedEmail, password]
-    );
-
-    const users = result.rows || result;
-    if (!users || users.length === 0) {
-      return res.status(401).json({ message: "Invalid credentials" });
+  if (pathname === "/login" && method === "POST") {
+    const { email, password } = req.body || {};
+    if (!email || !password) {
+      return res.status(400).json({ message: "Missing login fields" });
     }
 
-    // Step 2: Generate OTP
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    const expiresAt = Date.now() + 5 * 60 * 1000; // 5 min expiry
+    try {
+      const normalizedEmail = email.toLowerCase().trim();
 
-    // Step 3: Store OTP in login table
-    await db.execute(
-      `UPDATE login SET otp = ?, otp_expires_at = ? WHERE email = ?`,
-      [otp, expiresAt, normalizedEmail]
-    );
+      const result = await db.execute(
+        `SELECT * FROM register WHERE email = ? AND password = ?`,
+        [normalizedEmail, password]
+      );
 
-    // Step 4: Send OTP via email
-    const mailOptions = {
-      from: `mailtest@gmail.com`,
-      to: normalizedEmail,
-      subject: "Your OTP Code",
-      text: `Your OTP code is ${otp}. It will expire in 5 minutes.`,
-    };
-    await transporter.sendMail(mailOptions);
+      const users = result.rows || result;
 
-    console.log(`[LOGIN OTP SENT] For ${normalizedEmail}, OTP: ${otp}`);
+      if (!users || users.length === 0)
+        return res.status(401).json({ message: "Invalid credentials" });
 
-    // Step 5: Ask user to verify OTP
-    return res.status(200).json({
-      message: "OTP sent to your email. Please verify to complete login.",
-      email: normalizedEmail,
-    });
-  } catch (err) {
-    console.error("Login error:", err);
-    return res.status(500).json({ message: "DB error", error: err.message });
+      const token = uuidv4();
+      return res
+        .status(200)
+        .json({
+          message: "Login successful",
+          user: { email: normalizedEmail },
+          token,
+        });
+    } catch (err) {
+      return res.status(500).json({ message: "DB error", error: err.message });
+    }
   }
-}
-
 
   // Request OTP
   if (pathname === "/request-otp" && method === "POST") {
@@ -423,18 +401,6 @@ if (pathname === "/profile" && method === "POST") {
     const id = uuidv4();
 
     try {
-      // ✅ Step 1: Check if email already exists
-      const check = await db.execute({
-        sql: "SELECT id FROM profile WHERE email = ?",
-        args: [email.toLowerCase()],
-      });
-
-      if (check.rows.length > 0) {
-        // ✅ Email already exists
-        return res.status(400).json({ message: "Email already exists" });
-      }
-
-      // ✅ Step 2: Insert new record if not exists
       await db.execute({
         sql: `INSERT INTO profile (id, email, username, totalamount, depositamount, sellamount)
               VALUES (?, ?, ?, ?, ?, ?)`,
@@ -450,7 +416,7 @@ if (pathname === "/profile" && method === "POST") {
 
       return res.status(201).json({ message: "Profile created", id });
     } catch (dbError) {
-      console.error("DB error:", dbError);
+      console.error("DB insert error:", dbError);
       return res.status(500).json({ message: "Database error" });
     }
   } catch (error) {
@@ -458,7 +424,6 @@ if (pathname === "/profile" && method === "POST") {
     return res.status(500).json({ message: "Internal server error" });
   }
 }
-
 
 // Get profile by email
 if (pathname === "/gprofile" && method === "GET") {
