@@ -401,6 +401,18 @@ if (pathname === "/profile" && method === "POST") {
     const id = uuidv4();
 
     try {
+      // ✅ Step 1: Check if email already exists
+      const check = await db.execute({
+        sql: "SELECT id FROM profile WHERE email = ?",
+        args: [email.toLowerCase()],
+      });
+
+      if (check.rows.length > 0) {
+        // ✅ Email already exists
+        return res.status(400).json({ message: "Email already exists" });
+      }
+
+      // ✅ Step 2: Insert new record if not exists
       await db.execute({
         sql: `INSERT INTO profile (id, email, username, totalamount, depositamount, sellamount)
               VALUES (?, ?, ?, ?, ?, ?)`,
@@ -416,7 +428,7 @@ if (pathname === "/profile" && method === "POST") {
 
       return res.status(201).json({ message: "Profile created", id });
     } catch (dbError) {
-      console.error("DB insert error:", dbError);
+      console.error("DB error:", dbError);
       return res.status(500).json({ message: "Database error" });
     }
   } catch (error) {
@@ -424,6 +436,7 @@ if (pathname === "/profile" && method === "POST") {
     return res.status(500).json({ message: "Internal server error" });
   }
 }
+
 
 // Get profile by email
 if (pathname === "/gprofile" && method === "GET") {
