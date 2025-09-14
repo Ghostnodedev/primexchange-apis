@@ -332,14 +332,23 @@ const handler = async (req, res) => {
 
 if (pathname === "/account" && method === "POST") {
   try {
-    const { accountno, ifsc, holdername, bankname, accounttype, sellamount, email } = req.body;
+    const {
+      accountno,
+      ifsc,
+      holdername,
+      bankname,
+      accounttype,
+      sellamount,
+      email,
+    } = req.body;
+
     const id = uuidv4();
 
     if (!accountno || !ifsc || !holdername || !bankname || !accounttype || !email) {
       return res.status(400).json({ message: "❌ Missing required fields" });
     }
 
-    // ✅ Validation patterns
+    // Validate inputs
     const IFSC_REGEX = /^[A-Z]{4}0[0-9]{6}$/;
     const ACCOUNT_REGEX = /^[0-9]{9,18}$/;
 
@@ -355,7 +364,23 @@ if (pathname === "/account" && method === "POST") {
       });
     }
 
-    // ✅ Insert into DB
+    // 🔍 Check if account already exists (based on accountno + email)
+    const [existing] = await db.execute({
+      sql: `SELECT id FROM account WHERE accountno = ? AND email = ?`,
+      args: [accountno, email.toLowerCase()],
+    });
+
+    if (existing.length > 0) {
+      // ✅ Update the existing record
+      await db.execute({
+        sql: `UPDATE account SET sellamount = ?, holdername = ?, ifsc = ?, bankname = ?, accounttype = ? WHERE accountno = ? AND email = ?`,
+        args: [sellamount || 0, holdername, ifsc, bankname, accounttype, accountno, email.toLowerCase()],
+      });
+
+      return res.status(200).json({ message: "✅ Account updated" });
+    }
+
+    // 🆕 Insert new account if it doesn't exist
     await db.execute({
       sql: `INSERT INTO account (id, holdername, accountno, ifsc, bankname, accounttype, sellamount, email)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
