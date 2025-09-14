@@ -338,31 +338,48 @@ if (pathname === "/account" && method === "POST") {
     if (!accountno || !ifsc || !holdername || !bankname || !accounttype || !email) {
       return res.status(400).json({ message: "❌ Missing required fields" });
     }
+// Normalize email
+    const normEmail = email.toLowerCase();
 
-    // ✅ Validation patterns
+    // Validation
     const IFSC_REGEX = /^[A-Z]{4}0[0-9]{6}$/;
     const ACCOUNT_REGEX = /^[0-9]{9,18}$/;
 
     if (!ACCOUNT_REGEX.test(accountno)) {
-      return res.status(400).json({
-        message: "❌ Invalid Account Number (must be 9–18 digits)",
-      });
+      return res.status(400).json({ message: "❌ Invalid Account Number (must be 9–18 digits)" });
     }
-
     if (!IFSC_REGEX.test(ifsc)) {
-      return res.status(400).json({
-        message: "❌ Invalid IFSC Code (must be 11 characters, e.g. SBIN0123456)",
-      });
+      return res.status(400).json({ message: "❌ Invalid IFSC Code (must be 11 characters, e.g. SBIN0123456)" });
     }
 
-    // ✅ Insert into DB
-    await db.execute({
-      sql: `INSERT INTO account (id, holdername, accountno, ifsc, bankname, accounttype, sellamount, email)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      args: [id, holdername, accountno, ifsc, bankname, accounttype, sellamount || 0, email.toLowerCase()],
+    // First check if account with this accountno + email exists
+    const [existingRows] = await db.execute({
+      sql: `SELECT id FROM account WHERE accountno = ? AND email = ?`,
+      args: [accountno, normEmail],
     });
 
-    res.status(201).json({ message: "✅ Account inserted", id });
+    if (existingRows.length > 0) {
+      // It exists: UPDATE it
+      const existing = existingRows[0];
+      await db.execute({
+        sql: `UPDATE account 
+              SET holdername = ?, ifsc = ?, bankname = ?, accounttype = ?, sellamount = ?
+              WHERE accountno = ? AND email = ?`,
+        args: [holdername, ifsc, bankname, accounttype, sellamount || 0, accountno, normEmail],
+      });
+
+      return res.status(200).json({ message: "✅ Account updated", id: existing.id });
+    } else {
+      // Not exists: INSERT new
+      const newId = uuidv4();
+      await db.execute({
+        sql: `INSERT INTO account 
+              (id, holdername, accountno, ifsc, bankname, accounttype, sellamount, email)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        args: [newId, holdername, accountno, ifsc, bankname, accounttype, sellamount || 0, normEmail],
+      });
+      return res.status(201).json({ message: "✅ Account inserted", id: newId });
+    }
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
