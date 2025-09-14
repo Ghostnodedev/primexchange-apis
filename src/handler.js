@@ -330,123 +330,74 @@ const handler = async (req, res) => {
     }
   }
 
+
 if (pathname === "/account" && method === "POST") {
   try {
-    const { accountno, ifsc, holdername, bankname, accounttype, sellamount, email } = req.body;
-    const id = uuidv4();
+    const {
+      accountno,
+      ifsc,
+      holdername,
+      bankname,
+      accounttype,
+      sellamount,
+      email,
+    } = req.body;
 
-   if (!accountno || !ifsc || !holdername || !bankname || !accounttype || !email) {
-      return res.status(400).json({ message: "Missing required fields" });
+    // Check required fields presence
+    if (
+      !accountno ||
+      !ifsc ||
+      !holdername ||
+      !bankname ||
+      !accounttype ||
+      !email
+    ) {
+      return res.status(400).json({ message: "❌ Missing required fields" });
     }
 
-    const normEmail = email.toLowerCase();
-
-    // optional validation: adjust IFSC / accountno regex to your requirement
+    // Validate formats
     const IFSC_REGEX = /^[A-Z]{4}0[0-9]{6}$/;
     const ACCOUNT_REGEX = /^[0-9]{9,18}$/;
+
     if (!ACCOUNT_REGEX.test(accountno)) {
-      return res.status(400).json({ message: "Invalid Account Number (must be 9‑18 digits)" });
+      return res.status(400).json({
+        message: "❌ Invalid Account Number (must be 9–18 digits)",
+      });
     }
+
     if (!IFSC_REGEX.test(ifsc)) {
-      return res.status(400).json({ message: "Invalid IFSC Code" });
-    }
-
-    // Do SELECT to see if account already exists (unique by accountno + email)
-    let existingRows;
-    try {
-      // Adjust this to how your mysql‑lite queries work.
-      // For example: connection.query(sql, params)
-      const sqlSelect = `
-        SELECT id, sellamount
-        FROM account
-        WHERE accountno = ? AND email = ?
-        LIMIT 1
-      `;
-      const params = [accountno, normEmail];
-      const result = await connection.query(sqlSelect, params);
-      // mysql‑lite may return an array of rows directly, or [rows, meta]
-      // Let's normalize:
-      if (!result) {
-        existingRows = [];
-      } else if (Array.isArray(result)) {
-        existingRows = result;
-      } else if (result.rows && Array.isArray(result.rows)) {
-        existingRows = result.rows;
-      } else {
-        // Unknown format
-        console.error("SELECT returned unexpected format:", result);
-        return res.status(500).json({ error: "Database returned unexpected SELECT format" });
-      }
-    } catch (selectError) {
-      console.error("DB SELECT error:", selectError);
-      return res.status(500).json({ error: "Database SELECT error" });
-    }
-
-    if (existingRows.length > 0) {
-      // Found existing account → update
-      const existing = existingRows[0];
-      const oldSell = existing.sellamount || 0;
-      const newSell = oldSell + sellamount;
-
-      try {
-        const sqlUpdate = `
-          UPDATE account
-          SET holdername = ?, ifsc = ?, bankname = ?, accounttype = ?, sellamount = ?
-          WHERE accountno = ? AND email = ?
-        `;
-        const paramsUpdate = [
-          holdername,
-          ifsc,
-          bankname,
-          accounttype,
-          newSell,
-          accountno,
-          normEmail,
-        ];
-        await connection.query(sqlUpdate, paramsUpdate);
-      } catch (updateError) {
-        console.error("DB UPDATE error:", updateError);
-        return res.status(500).json({ error: "Database UPDATE error" });
-      }
-
-      return res.status(200).json({ 
-        message: "Account updated",
-        id: existing.id,
-        sellamount: newSell
-      });
-    } else {
-      // Not exists → insert
-      const newId = uuidv4();
-      try {
-        const sqlInsert = `
-          INSERT INTO account (id, holdername, accountno, ifsc, bankname, accounttype, sellamount, email)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        `;
-        const paramsInsert = [
-          newId,
-          holdername,
-          accountno,
-          ifsc,
-          bankname,
-          accounttype,
-          sellamount,
-          normEmail
-        ];
-        await connection.query(sqlInsert, paramsInsert);
-      } catch (insertError) {
-        console.error("DB INSERT error:", insertError);
-        return res.status(500).json({ error: "Database INSERT error" });
-      }
-
-      return res.status(201).json({
-        message: "Account inserted",
-        id: newId,
-        sellamount: sellamount
+      return res.status(400).json({
+        message:
+          "❌ Invalid IFSC Code (must be 11 characters, e.g. SBIN0123456)",
       });
     }
+
+    // Prepare insert data
+    const id = uuidv4();
+    const normEmail = email.toLowerCase();
+    const normalizedSellamount = typeof sellamount === "number" ? sellamount : 0;
+
+    // Insert into DB
+    await db.execute({
+      sql: `INSERT INTO account 
+        (id, holdername, accountno, ifsc, bankname, accounttype, sellamount, email)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      args: [
+        id,
+        holdername,
+        accountno,
+        ifsc,
+        bankname,
+        accounttype,
+        normalizedSellamount,
+        normEmail,
+      ],
+    });
+
+    return res.status(201).json({ message: "✅ Account inserted", id });
   } catch (err) {
-    console.error("General POST /account error:", err);
-    res.status(500).json({ error: err.message });
+    console.error("Error inserting account:", err);
+    return res.status(500).json({ error: err.message });
   }
 }
 
