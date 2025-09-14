@@ -330,6 +330,8 @@ const handler = async (req, res) => {
     }
   }
 
+
+// ---------------- POST /account ----------------
 if (pathname === "/account" && method === "POST") {
   try {
     const { accountno, ifsc, holdername, bankname, accounttype, sellamount, email } = req.body;
@@ -355,19 +357,54 @@ if (pathname === "/account" && method === "POST") {
       });
     }
 
-    // ✅ Insert into DB
-    await db.execute({
-      sql: `INSERT INTO account (id, holdername, accountno, ifsc, bankname, accounttype, sellamount, email)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      args: [id, holdername, accountno, ifsc, bankname, accounttype, sellamount || 0, email.toLowerCase()],
-    });
+    // ✅ Check if record already exists for this email
+    const existing = await db.execute(
+      `SELECT id FROM account WHERE email = ?`,
+      [email.toLowerCase()]
+    );
 
-    res.status(201).json({ message: "✅ Account inserted", id });
+    if (existing.rows.length > 0) {
+      // ✅ Update existing record
+      await db.execute({
+        sql: `UPDATE account
+              SET holdername = ?, accountno = ?, ifsc = ?, bankname = ?, accounttype = ?, sellamount = ?
+              WHERE email = ?`,
+        args: [
+          holdername,
+          accountno,
+          ifsc,
+          bankname,
+          accounttype,
+          sellamount || 0,
+          email.toLowerCase(),
+        ],
+      });
+
+      return res.status(200).json({ message: "✅ Account updated" });
+    } else {
+      // ✅ Insert new record
+      await db.execute({
+        sql: `INSERT INTO account (id, holdername, accountno, ifsc, bankname, accounttype, sellamount, email)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        args: [
+          id,
+          holdername,
+          accountno,
+          ifsc,
+          bankname,
+          accounttype,
+          sellamount || 0,
+          email.toLowerCase(),
+        ],
+      });
+
+      return res.status(201).json({ message: "✅ Account inserted", id });
+    }
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    return res.status(500).json({ error: err.message });
   }
-  return;
 }
+
 
 // ---------------- GET /gacc ----------------
 // Only fetch accounts for the given email
