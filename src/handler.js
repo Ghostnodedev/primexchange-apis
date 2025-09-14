@@ -343,7 +343,7 @@ if (pathname === "/account" && method === "POST") {
       email,
     } = req.body;
 
-    // Check required fields presence
+    // Validate required fields
     if (
       !accountno ||
       !ifsc ||
@@ -372,34 +372,72 @@ if (pathname === "/account" && method === "POST") {
       });
     }
 
-    // Prepare insert data
-    const id = uuidv4();
     const normEmail = email.toLowerCase();
     const normalizedSellamount = typeof sellamount === "number" ? sellamount : 0;
 
-    // Insert into DB
-    await db.execute({
-      sql: `INSERT INTO account 
-        (id, holdername, accountno, ifsc, bankname, accounttype, sellamount, email)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      args: [
-        id,
-        holdername,
-        accountno,
-        ifsc,
-        bankname,
-        accounttype,
-        normalizedSellamount,
-        normEmail,
-      ],
+    // 🔍 Check if the account already exists
+    const existing = await db.execute({
+      sql: `SELECT id, sellamount FROM account WHERE accountno = ? AND email = ? LIMIT 1`,
+      args: [accountno, normEmail],
     });
 
-    return res.status(201).json({ message: "✅ Account inserted", id });
+    const existingRow = existing.rows?.[0] || existing[0]; // Adjust for DB driver
+
+    if (existingRow) {
+      // 🛠 Update existing account (add to sellamount)
+      const newSellAmount =
+        parseFloat(existingRow.sellamount || 0) + normalizedSellamount;
+
+      await db.execute({
+        sql: `
+          UPDATE account
+          SET holdername = ?, ifsc = ?, bankname = ?, accounttype = ?, sellamount = ?
+          WHERE accountno = ? AND email = ?
+        `,
+        args: [
+          holdername,
+          ifsc,
+          bankname,
+          accounttype,
+          newSellAmount,
+          accountno,
+          normEmail,
+        ],
+      });
+
+      return res.status(200).json({
+        message: "✅ Account updated",
+        sellamount: newSellAmount,
+        id: existingRow.id,
+      });
+    } else {
+      // 🆕 Insert new account
+      const id = uuidv4();
+
+      await db.execute({
+        sql: `INSERT INTO account 
+          (id, holdername, accountno, ifsc, bankname, accounttype, sellamount, email)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        args: [
+          id,
+          holdername,
+          accountno,
+          ifsc,
+          bankname,
+          accounttype,
+          normalizedSellamount,
+          normEmail,
+        ],
+      });
+
+      return res.status(201).json({ message: "✅ Account inserted", id });
+    }
   } catch (err) {
-    console.error("Error inserting account:", err);
+    console.error("Error inserting/updating account:", err);
     return res.status(500).json({ error: err.message });
   }
 }
+
 
 
 // ---------------- GET /gacc ----------------
