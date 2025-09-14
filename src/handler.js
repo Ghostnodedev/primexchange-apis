@@ -336,54 +336,121 @@ if (pathname === "/account" && method === "POST") {
     const id = uuidv4();
 
     if (!accountno || !ifsc || !holdername || !bankname || !accounttype || !email) {
-      return res.status(400).json({ message: "❌ Missing required fields" });
+      res.status(400).json({ message: "Missing required fields" });
+      return;
     }
-// Normalize email
+
     const normEmail = email.toLowerCase();
 
-    // Validation
+    // Validate ifsc and accountno if needed
     const IFSC_REGEX = /^[A-Z]{4}0[0-9]{6}$/;
     const ACCOUNT_REGEX = /^[0-9]{9,18}$/;
 
     if (!ACCOUNT_REGEX.test(accountno)) {
-      return res.status(400).json({ message: "❌ Invalid Account Number (must be 9–18 digits)" });
+      res.status(400).json({ message: "Invalid Account Number (must be 9–18 digits)" });
+      return;
     }
     if (!IFSC_REGEX.test(ifsc)) {
-      return res.status(400).json({ message: "❌ Invalid IFSC Code (must be 11 characters, e.g. SBIN0123456)" });
+      res.status(400).json({ message: "Invalid IFSC Code" });
+      return;
     }
 
-    // First check if account with this accountno + email exists
-    const [existingRows] = await db.execute({
-      sql: `SELECT id FROM account WHERE accountno = ? AND email = ?`,
-      args: [accountno, normEmail],
-    });
+    // 1. Check if the account already exists using accountno + email
+    const selectQuery = `
+      SELECT id, sellamount
+      FROM account
+      WHERE accountno = ? AND email = ?
+      LIMIT 1
+    `;
+    const selectParams = [accountno, normEmail];
+
+    let existingRows;
+    try {
+      existingRows = await sqlLiteClient.query(selectQuery, selectParams);
+      // Depending on the library, `query` might return an array of rows directly
+      // or an object. Ensure it's iterable.
+    } catch (err) {
+      console.error("DB SELECT error:", err);
+      res.status(500).json({ error: "Database SELECT error" });
+      return;
+    }
+
+    // If existingRows is not iterable or not an array, handle error
+    if (!existingRows || !Array.isArray(existingRows)) {
+      res.status(500).json({ error: "Database returned unexpected format" });
+      return;
+    }
 
     if (existingRows.length > 0) {
-      // It exists: UPDATE it
+      // Account exists → update
       const existing = existingRows[0];
-      await db.execute({
-        sql: `UPDATE account 
-              SET holdername = ?, ifsc = ?, bankname = ?, accounttype = ?, sellamount = ?
-              WHERE accountno = ? AND email = ?`,
-        args: [holdername, ifsc, bankname, accounttype, sellamount || 0, accountno, normEmail],
-      });
+      const newSellAmount = (existing.sellamount || 0) + sellamount;
 
-      return res.status(200).json({ message: "✅ Account updated", id: existing.id });
+      const updateQuery = `
+        UPDATE account
+        SET
+          holdername = ?,
+          ifsc = ?,
+          bankname = ?,
+          accounttype = ?,
+          sellamount = ?
+        WHERE accountno = ? AND email = ?
+      `;
+      const updateParams = [
+        holdername,
+        ifsc,
+        bankname,
+        accounttype,
+        newSellAmount,
+        accountno,
+        normEmail
+      ];
+
+      try {
+        await sqlLiteClient.query(updateQuery, updateParams);
+      } catch (err) {
+        console.error("DB UPDATE error:", err);
+        res.status(500).json({ error: "Database UPDATE error" });
+        return;
+      }
+
+      res.status(200).json({ message: "Account updated", id: existing.id, sellamount: newSellAmount });
+      return;
     } else {
-      // Not exists: INSERT new
+      // Account does not exist → insert
       const newId = uuidv4();
-      await db.execute({
-        sql: `INSERT INTO account 
-              (id, holdername, accountno, ifsc, bankname, accounttype, sellamount, email)
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-        args: [newId, holdername, accountno, ifsc, bankname, accounttype, sellamount || 0, normEmail],
-      });
-      return res.status(201).json({ message: "✅ Account inserted", id: newId });
+
+      const insertQuery = `
+        INSERT INTO account (id, holdername, accountno, ifsc, bankname, accounttype, sellamount, email)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `;
+      const insertParams = [
+        newId,
+        holdername,
+        accountno,
+        ifsc,
+        bankname,
+        accounttype,
+        sellamount,
+        normEmail
+      ];
+
+      try {
+        await sqlLiteClient.query(insertQuery, insertParams);
+      } catch (err) {
+        console.error("DB INSERT error:", err);
+        res.status(500).json({ error: "Database INSERT error" });
+        return;
+      }
+
+      res.status(201).json({ message: "Account inserted", id: newId, sellamount: sellamount });
+      return;
     }
+
   } catch (err) {
+    console.error("General POST /account error:", err);
     res.status(500).json({ error: err.message });
   }
-  return;
 }
 
 // ---------------- GET /gacc ----------------
