@@ -330,7 +330,6 @@ const handler = async (req, res) => {
     }
   }
 
-
 // ---------------- POST /account ----------------
 if (pathname === "/account" && method === "POST") {
   try {
@@ -357,53 +356,49 @@ if (pathname === "/account" && method === "POST") {
       });
     }
 
-    // ✅ Check if record already exists for this email
-    const existing = await db.execute(
-      `SELECT id FROM account WHERE email = ?`,
+    // ✅ Check how many accounts exist for this email
+    const existingCount = await db.execute(
+      `SELECT COUNT(*) as count FROM account WHERE email = ?`,
       [email.toLowerCase()]
     );
+    const count = existingCount.rows[0].count;
 
-    if (existing.rows.length > 0) {
-      // ✅ Update existing record
-      await db.execute({
-        sql: `UPDATE account
-              SET holdername = ?, accountno = ?, ifsc = ?, bankname = ?, accounttype = ?, sellamount = ?
-              WHERE email = ?`,
-        args: [
-          holdername,
-          accountno,
-          ifsc,
-          bankname,
-          accounttype,
-          sellamount || 0,
-          email.toLowerCase(),
-        ],
-      });
-
-      return res.status(200).json({ message: "✅ Account updated" });
-    } else {
-      // ✅ Insert new record
-      await db.execute({
-        sql: `INSERT INTO account (id, holdername, accountno, ifsc, bankname, accounttype, sellamount, email)
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-        args: [
-          id,
-          holdername,
-          accountno,
-          ifsc,
-          bankname,
-          accounttype,
-          sellamount || 0,
-          email.toLowerCase(),
-        ],
-      });
-
-      return res.status(201).json({ message: "✅ Account inserted", id });
+    if (count >= 10) {
+      return res.status(400).json({ message: "❌ You can only add up to 10 accounts per user" });
     }
+
+    // ✅ Check if same account number + IFSC already exists for this email
+    const duplicate = await db.execute(
+      `SELECT id FROM account WHERE email = ? AND accountno = ? AND ifsc = ?`,
+      [email.toLowerCase(), accountno, ifsc]
+    );
+
+    if (duplicate.rows.length > 0) {
+      return res.status(400).json({ message: "❌ This account already exists for this user" });
+    }
+
+    // ✅ Insert new account
+    await db.execute({
+      sql: `INSERT INTO account (id, holdername, accountno, ifsc, bankname, accounttype, sellamount, email)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      args: [
+        id,
+        holdername,
+        accountno,
+        ifsc,
+        bankname,
+        accounttype,
+        sellamount || 0,
+        email.toLowerCase(),
+      ],
+    });
+
+    return res.status(201).json({ message: "✅ Account inserted", id });
   } catch (err) {
     return res.status(500).json({ error: err.message });
   }
 }
+
 
 
 // ---------------- GET /gacc ----------------
