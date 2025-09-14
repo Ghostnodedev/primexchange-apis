@@ -399,6 +399,30 @@ if (pathname === "/account" && method === "POST") {
   }
 }
 
+if (pathname === "/account" && method === "PUT") {
+  try {
+    const { email, accountno, ifsc, sellamount } = req.body;
+
+    if (!email || !accountno || !ifsc || sellamount == null) {
+      return res.status(400).json({ message: "❌ Missing required fields" });
+    }
+
+    const result = await db.execute(
+      `UPDATE account SET sellamount = ? WHERE email = ? AND accountno = ? AND ifsc = ?`,
+      [sellamount, email.toLowerCase(), accountno, ifsc]
+    );
+
+    if (result.rowsAffected === 0) {
+      return res.status(404).json({ message: "❌ Account not found" });
+    }
+
+    res.status(200).json({ message: "✅ Sell amount updated" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+  return;
+}
+
 
 
 // ---------------- GET /gacc ----------------
