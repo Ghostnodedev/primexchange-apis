@@ -330,7 +330,6 @@ const handler = async (req, res) => {
     }
   }
 
-// ---------------- POST /account ----------------
 if (pathname === "/account" && method === "POST") {
   try {
     const { accountno, ifsc, holdername, bankname, accounttype, sellamount, email } = req.body;
@@ -356,74 +355,19 @@ if (pathname === "/account" && method === "POST") {
       });
     }
 
-    // ✅ Check how many accounts exist for this email
-    const existingCount = await db.execute(
-      `SELECT COUNT(*) as count FROM account WHERE email = ?`,
-      [email.toLowerCase()]
-    );
-    const count = existingCount.rows[0].count;
-
-    if (count >= 10) {
-      return res.status(400).json({ message: "❌ You can only add up to 10 accounts per user" });
-    }
-
-    // ✅ Check if same account number + IFSC already exists for this email
-    const duplicate = await db.execute(
-      `SELECT id FROM account WHERE email = ? AND accountno = ? AND ifsc = ?`,
-      [email.toLowerCase(), accountno, ifsc]
-    );
-
-    if (duplicate.rows.length > 0) {
-      return res.status(400).json({ message: "❌ This account already exists for this user" });
-    }
-
-    // ✅ Insert new account
+    // ✅ Insert into DB
     await db.execute({
       sql: `INSERT INTO account (id, holdername, accountno, ifsc, bankname, accounttype, sellamount, email)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      args: [
-        id,
-        holdername,
-        accountno,
-        ifsc,
-        bankname,
-        accounttype,
-        sellamount || 0,
-        email.toLowerCase(),
-      ],
+      args: [id, holdername, accountno, ifsc, bankname, accounttype, sellamount || 0, email.toLowerCase()],
     });
 
-    return res.status(201).json({ message: "✅ Account inserted", id });
-  } catch (err) {
-    return res.status(500).json({ error: err.message });
-  }
-}
-
-if (pathname === "/account" && method === "PUT") {
-  try {
-    const { email, accountno, ifsc, sellamount } = req.body;
-
-    if (!email || !accountno || !ifsc || sellamount == null) {
-      return res.status(400).json({ message: "❌ Missing required fields" });
-    }
-
-    const result = await db.execute(
-      `UPDATE account SET sellamount = ? WHERE email = ? AND accountno = ? AND ifsc = ?`,
-      [sellamount, email.toLowerCase(), accountno, ifsc]
-    );
-
-    if (result.rowsAffected === 0) {
-      return res.status(404).json({ message: "❌ Account not found" });
-    }
-
-    res.status(200).json({ message: "✅ Sell amount updated" });
+    res.status(201).json({ message: "✅ Account inserted", id });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
   return;
 }
-
-
 
 // ---------------- GET /gacc ----------------
 // Only fetch accounts for the given email
