@@ -518,6 +518,52 @@ if (pathname === "/gprofile" && method === "GET") {
   }
 }
 
+
+
+if (pathname === "/invoice" && method === "POST") {
+  try {
+    const { holdername, bankname, accountno, ifsc, sellamount, newBalance } = req.body;
+    if (!holdername || !bankname || !accountno || !ifsc || !sellamount || !newBalance) {
+      return res.status(400).json({ message: "Missing required fields" });
+    }
+
+    const invoiceDate = new Date().toLocaleDateString();
+    const invoiceId = `INV-${Math.floor(100000 + Math.random() * 900000)}`;
+    const html = `
+      <h2>🧾 Invoice from MyFinanceApp</h2>
+      <p>Hello,</p>
+      <p>Here are your account and transaction details:</p>
+      <table border="1" cellpadding="10" cellspacing="0" style="border-collapse: collapse;">
+        <tr><td><strong>Invoice ID</strong></td><td>${invoiceId}</td></tr>
+        <tr><td><strong>Date</strong></td><td>${invoiceDate}</td></tr>
+        <tr><td><strong>Account Holder</strong></td><td>${holdername}</td></tr>
+        <tr><td><strong>Bank Name</strong></td><td>${bankname}</td></tr>
+        <tr><td><strong>Account Number</strong></td><td>${accountno}</td></tr>
+        <tr><td><strong>IFSC</strong></td><td>${ifsc}</td></tr>
+        <tr><td><strong>Sell Amount</strong></td><td>₹${parseFloat(sellamount).toFixed(2)}</td></tr>
+        <tr><td><strong>Remaining Balance</strong></td><td>₹${parseFloat(newBalance).toFixed(2)}</td></tr>
+      </table>
+      <p>Thank you for using MyFinanceApp.</p>
+    `;
+    await transporter.sendMail({
+      from: '"SellBot" <someone@gmail.com>',
+      to: "vaibhavpandey331@gmail.com",
+      subject: "📄 New Sell Invoice",
+      html: html,
+    });
+    return res.status(200).json({
+      message: "✅ Invoice sent",
+      invoiceId,
+    });
+  } catch (error) {
+    console.error("Invoice email error:", error);
+    return res.status(500).json({
+      message: "❌ Failed to send invoice",
+      error: error.message,
+    });
+  }
+}
+
 // Default 404 response for unknown routes
 return res.status(404).json({ message: "Route not found" });
 }

@@ -16,7 +16,8 @@
     { "src": "/account", "methods": ["POST", "OPTIONS"], "dest": "/src/handler.js" },
     { "src": "/gacc", "methods": ["GET", "OPTIONS"], "dest": "/src/handler.js" },
     { "src": "/profile", "methods": ["POST", "OPTIONS"], "dest": "/src/handler.js" },
-    { "src": "/gprofile", "methods": ["GET", "OPTIONS"], "dest": "/src/handler.js" }
+    { "src": "/gprofile", "methods": ["GET", "OPTIONS"], "dest": "/src/handler.js" },
+    { "src": "/invoice", "methods": ["POST", "OPTIONS"], "dest": "/src/handler.js" }
 
   ]
 }
