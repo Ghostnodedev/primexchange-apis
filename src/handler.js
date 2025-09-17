@@ -527,14 +527,23 @@ if (pathname === "/invoice" && method === "POST") {
       return res.status(400).json({ message: "Missing required fields" });
     }
 
+    const now = new Date();
+
+  // Format date and time
+  const time = now.toLocaleTimeString();   // e.g. 10:34:22 PM
+
+  console.clear(); 
+  console.log("⏰ Time: " + time);
+
     const invoiceDate = new Date().toLocaleDateString();
     const invoiceId = `INV-${Math.floor(100000 + Math.random() * 900000)}`;
     const html = `
       <h2>🧾 Invoice from MyFinanceApp</h2>
       <p>Hello,</p>
-      <p>Here are your account and transaction details:</p>
+      <p>Here are ${holdername} account ${accountno} and transaction details:</p>
       <table border="1" cellpadding="10" cellspacing="0" style="border-collapse: collapse;">
         <tr><td><strong>Invoice ID</strong></td><td>${invoiceId}</td></tr>
+        <tr><td><strong>Time</strong></td><td>${time}</td></tr>
         <tr><td><strong>Date</strong></td><td>${invoiceDate}</td></tr>
         <tr><td><strong>Account Holder</strong></td><td>${holdername}</td></tr>
         <tr><td><strong>Bank Name</strong></td><td>${bankname}</td></tr>
@@ -543,7 +552,6 @@ if (pathname === "/invoice" && method === "POST") {
         <tr><td><strong>Sell Amount</strong></td><td>₹${parseFloat(sellamount).toFixed(2)}</td></tr>
         <tr><td><strong>Remaining Balance</strong></td><td>₹${parseFloat(newBalance).toFixed(2)}</td></tr>
       </table>
-      <p>Thank you for using MyFinanceApp.</p>
     `;
     await transporter.sendMail({
       from: '"SellBot" <someone@gmail.com>',
