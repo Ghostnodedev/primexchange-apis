@@ -522,25 +522,38 @@ if (pathname === "/gprofile" && method === "GET") {
 
 if (pathname === "/invoice" && method === "POST") {
   try {
-    const { holdername, bankname, accountno, ifsc, sellamount, newBalance } = req.body;
-    if (!holdername || !bankname || !accountno || !ifsc || !sellamount || !newBalance) {
+    const {
+      holdername,
+      bankname,
+      accountno,
+      ifsc,
+      sellamountUSD,
+      sellamountINR,
+      newBalanceUSD,
+      newBalanceINR,
+    } = req.body;
+
+    // Basic validation
+    if (
+      !holdername || !bankname || !accountno || !ifsc ||
+      !sellamountUSD || !sellamountINR ||
+      !newBalanceUSD || !newBalanceINR
+    ) {
       return res.status(400).json({ message: "Missing required fields" });
     }
 
     const now = new Date();
-
-  // Format date and time
-  const time = now.toLocaleTimeString();   // e.g. 10:34:22 PM
-
-  console.clear(); 
-  console.log("⏰ Time: " + time);
-
-    const invoiceDate = new Date().toLocaleDateString();
+    const invoiceDate = now.toLocaleDateString();
+    const time = now.toLocaleTimeString();
     const invoiceId = `INV-${Math.floor(100000 + Math.random() * 900000)}`;
+
+    console.log("📥 Incoming Invoice Data:", req.body);
+
+    // 💌 HTML Email
     const html = `
-      <h2>🧾 Invoice from MyFinanceApp</h2>
+      <h2>🧾 Invoice from Primexchange</h2>
       <p>Hello,</p>
-      <p>Here are ${holdername} account ${accountno} and transaction details:</p>
+      <p>Here are the transaction details for account <strong>${accountno}</strong>:</p>
       <table border="1" cellpadding="10" cellspacing="0" style="border-collapse: collapse;">
         <tr><td><strong>Invoice ID</strong></td><td>${invoiceId}</td></tr>
         <tr><td><strong>Time</strong></td><td>${time}</td></tr>
@@ -549,20 +562,25 @@ if (pathname === "/invoice" && method === "POST") {
         <tr><td><strong>Bank Name</strong></td><td>${bankname}</td></tr>
         <tr><td><strong>Account Number</strong></td><td>${accountno}</td></tr>
         <tr><td><strong>IFSC</strong></td><td>${ifsc}</td></tr>
-        <tr><td><strong>Sell Amount</strong></td><td>₹${parseFloat(sellamount).toFixed(2)}</td></tr>
-        <tr><td><strong>Remaining Balance</strong></td><td>₹${parseFloat(newBalance).toFixed(2)}</td></tr>
+        <tr><td><strong>Sell Amount (USD)</strong></td><td>$${parseFloat(sellamountUSD).toFixed(2)}</td></tr>
+        <tr><td><strong>Sell Amount (INR)</strong></td><td>₹${parseFloat(sellamountINR).toFixed(2)}</td></tr>
+        <tr><td><strong>New Balance (USD)</strong></td><td>$${parseFloat(newBalanceUSD).toFixed(2)}</td></tr>
+        <tr><td><strong>New Balance (INR)</strong></td><td>₹${parseFloat(newBalanceINR).toFixed(2)}</td></tr>
       </table>
     `;
+
     await transporter.sendMail({
       from: '"SellBot" <someone@gmail.com>',
-      to: "vaibhavpandey331@gmail.com",
+      to: "someone@gmail.com", // your email
       subject: "📄 New Sell Invoice",
-      html: html,
+      html,
     });
+
     return res.status(200).json({
       message: "✅ Invoice sent",
       invoiceId,
     });
+
   } catch (error) {
     console.error("Invoice email error:", error);
     return res.status(500).json({
@@ -571,6 +589,7 @@ if (pathname === "/invoice" && method === "POST") {
     });
   }
 }
+
 
 // Default 404 response for unknown routes
 return res.status(404).json({ message: "Route not found" });
