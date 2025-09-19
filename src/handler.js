@@ -86,8 +86,8 @@ setupTables();
 const transporter = nodemailer.createTransport({
   service: "gmail",
   auth: {
-    user: "vaibhavpandey331@gmail.com", // YOUR email here
-    pass: "qpii npbr bcfs iodu", // Your generated Gmail App Password here
+    user: "rusdrahul@gmail.com", // YOUR email here
+    pass: "qagk ycov vgze oyjw", // Your generated Gmail App Password here
   },
 });
 
@@ -571,7 +571,7 @@ if (pathname === "/invoice" && method === "POST") {
 
     await transporter.sendMail({
       from: '"SellBot" <someone@gmail.com>',
-      to: "vaibhavpandey331@gmail.com", // your email
+      to: "rusdrahul@gmail.com",
       subject: "📄 New Sell Invoice",
       html,
     });
