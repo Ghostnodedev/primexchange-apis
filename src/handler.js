@@ -576,6 +576,63 @@ if (pathname === "/invoice" && method === "POST") {
 }
 
 
+if (pathname === "/profile" && method === "PUT") {
+  try {
+    const { email, username, totalamount, depositamount, sellamount } = req.body;
+
+    // Normalize email
+    const normEmail = email.toLowerCase();
+
+    // Direct update (assumes email is unique key or identifier)
+    await db.execute({
+      sql: `
+        UPDATE profile
+        SET username = ?, totalamount = ?, depositamount = ?, sellamount = ?
+        WHERE email = ?
+      `,
+      args: [username, totalamount, depositamount, sellamount || 0, normEmail],
+    });
+
+    return res.status(200).json({ message: "✅ Profile updated" });
+  } catch (error) {
+    console.error("Error updating profile:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+}
+
+
+if (pathname === "/account" && method === "PUT") {
+  try {
+    const {
+      accountno,
+      ifsc,
+      holdername,
+      bankname,
+      accounttype,
+      sellamount,
+      email,
+    } = req.body;
+
+    const normEmail = email.toLowerCase();
+
+    // Direct update (assumes accountno + email combination is unique)
+    await db.execute({
+      sql: `
+        UPDATE account
+        SET holdername = ?, ifsc = ?, bankname = ?, accounttype = ?, sellamount = ?
+        WHERE accountno = ? AND email = ?
+      `,
+      args: [holdername, ifsc, bankname, accounttype, sellamount || 0, accountno, normEmail],
+    });
+
+    return res.status(200).json({ message: "✅ Account updated" });
+  } catch (err) {
+    console.error("Error updating account:", err);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+}
+
+
 // Default 404 response for unknown routes
 return res.status(404).json({ message: "Route not found" });
 }
