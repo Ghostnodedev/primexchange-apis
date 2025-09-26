@@ -27,7 +27,6 @@ async function setupTables() {
 
   await db.execute(`
     CREATE TABLE IF NOT EXISTS login (
-      CREATE TABLE IF NOT EXISTS login (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       email TEXT UNIQUE NOT NULL,
       password TEXT NOT NULL,
