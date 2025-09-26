@@ -343,7 +343,7 @@ if (pathname === "/account" && method === "POST") {
       email,
     } = req.body;
 
-    // Validate required fields
+    // Validate required fields (presence only)
     if (
       !accountno ||
       !ifsc ||
@@ -355,22 +355,7 @@ if (pathname === "/account" && method === "POST") {
       return res.status(400).json({ message: "❌ Missing required fields" });
     }
 
-    // Validate formats
-    const IFSC_REGEX = /^[A-Z]{4}0[0-9]{6}$/;
-    const ACCOUNT_REGEX = /^[0-9]{9,18}$/;
-
-    if (!ACCOUNT_REGEX.test(accountno)) {
-      return res.status(400).json({
-        message: "❌ Invalid Account Number (must be 9–18 digits)",
-      });
-    }
-
-    if (!IFSC_REGEX.test(ifsc)) {
-      return res.status(400).json({
-        message:
-          "❌ Invalid IFSC Code (must be 11 characters, e.g. SBIN0123456)",
-      });
-    }
+    // ✅ Removed account number and IFSC format validation
 
     const normEmail = email.toLowerCase();
     const normalizedSellamount = typeof sellamount === "number" ? sellamount : 0;
