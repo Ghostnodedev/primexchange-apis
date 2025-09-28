@@ -96,18 +96,22 @@ function formatCustomDateTime(date = new Date()) {
     "July", "August", "September", "October", "November", "December"
   ];
   
-  const day = date.getDate();
-  const month = months[date.getMonth()];
-  const year = date.getFullYear();
-  
-  let hours = date.getHours();
-  const minutes = date.getMinutes().toString().padStart(2, '0');
-  
+  // Adjust for local timezone offset in minutes
+  const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+
+  const day = localDate.getDate();
+  const month = months[localDate.getMonth()];
+  const year = localDate.getFullYear();
+
+  let hours = localDate.getHours();
+  const minutes = localDate.getMinutes().toString().padStart(2, '0');
+
   const ampm = hours >= 12 ? 'PM' : 'AM';
   hours = hours % 12 || 12; // convert to 12-hour format
-  
+
   return `${day}-${month} ${year} ${hours}:${minutes} ${ampm}`;
 }
+
 
 
 const handler = async (req, res) => {
