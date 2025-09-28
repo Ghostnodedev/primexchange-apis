@@ -448,24 +448,26 @@ if (pathname === "/profile" && method === "POST") {
     const { email, username, totalamount, depositamount, sellamount } = req.body;
     console.log("Incoming payload:", req.body);
 
-    // Validate required fields
     if (!email || !username || !totalamount || !depositamount) {
       return res.status(400).json({ message: "Missing required fields" });
     }
 
     const id = uuidv4();
+    const timestamp = formatCustomDateTime(); // 👈 Get formatted time
 
     try {
       await db.execute({
-        sql: `INSERT INTO profile (id, email, username, totalamount, depositamount, sellamount)
-              VALUES (?, ?, ?, ?, ?, ?)`,
+        sql: `INSERT INTO profile 
+                (id, email, username, totalamount, depositamount, sellamount, time)
+              VALUES (?, ?, ?, ?, ?, ?, ?)`,
         args: [
           id,
           email.toLowerCase(),
           username,
           totalamount,
           depositamount,
-          sellamount || 0, // default to 0 if missing
+          sellamount || 0,
+          timestamp, // 👈 Pass the formatted timestamp
         ],
       });
 
@@ -571,63 +573,6 @@ if (pathname === "/invoice" && method === "POST") {
       message: "❌ Failed to send invoice",
       error: error.message,
     });
-  }
-}
-
-
-if (pathname === "/profile" && method === "PUT") {
-  try {
-    const { email, username, totalamount, depositamount, sellamount } = req.body;
-
-    // Normalize email
-    const normEmail = email.toLowerCase();
-
-    // Direct update (assumes email is unique key or identifier)
-    await db.execute({
-      sql: `
-        UPDATE profile
-        SET username = ?, totalamount = ?, depositamount = ?, sellamount = ?
-        WHERE email = ?
-      `,
-      args: [username, totalamount, depositamount, sellamount || 0, normEmail],
-    });
-
-    return res.status(200).json({ message: "✅ Profile updated" });
-  } catch (error) {
-    console.error("Error updating profile:", error);
-    return res.status(500).json({ message: "Internal server error" });
-  }
-}
-
-
-if (pathname === "/account" && method === "PUT") {
-  try {
-    const {
-      accountno,
-      ifsc,
-      holdername,
-      bankname,
-      accounttype,
-      sellamount,
-      email,
-    } = req.body;
-
-    const normEmail = email.toLowerCase();
-
-    // Direct update (assumes accountno + email combination is unique)
-    await db.execute({
-      sql: `
-        UPDATE account
-        SET holdername = ?, ifsc = ?, bankname = ?, accounttype = ?, sellamount = ?
-        WHERE accountno = ? AND email = ?
-      `,
-      args: [holdername, ifsc, bankname, accounttype, sellamount || 0, accountno, normEmail],
-    });
-
-    return res.status(200).json({ message: "✅ Account updated" });
-  } catch (err) {
-    console.error("Error updating account:", err);
-    return res.status(500).json({ message: "Internal server error" });
   }
 }
 
