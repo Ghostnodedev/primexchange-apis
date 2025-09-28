@@ -90,27 +90,35 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-function formatCustomDateTime(date = new Date()) {
+function formatCustomDateTime(date = new Date(), offsetHours = 0, offsetMinutes = 0) {
   const months = [
     "January", "February", "March", "April", "May", "June",
     "July", "August", "September", "October", "November", "December"
   ];
-  
-  // Adjust for local timezone offset in minutes
-  const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
 
-  const day = localDate.getDate();
-  const month = months[localDate.getMonth()];
-  const year = localDate.getFullYear();
+  // Convert to milliseconds
+  const utc = date.getTime() + (date.getTimezoneOffset() * 60000);
 
-  let hours = localDate.getHours();
-  const minutes = localDate.getMinutes().toString().padStart(2, '0');
+  // Apply your offset in milliseconds
+  const localTime = new Date(utc + (offsetHours * 3600000) + (offsetMinutes * 60000));
+
+  const day = localTime.getDate();
+  const month = months[localTime.getMonth()];
+  const year = localTime.getFullYear();
+
+  let hours = localTime.getHours();
+  const minutes = localTime.getMinutes().toString().padStart(2, '0');
 
   const ampm = hours >= 12 ? 'PM' : 'AM';
   hours = hours % 12 || 12; // convert to 12-hour format
 
   return `${day}-${month} ${year} ${hours}:${minutes} ${ampm}`;
 }
+
+// Example usage for UTC+6:30 (6 hours 30 minutes ahead of UTC):
+console.log(formatCustomDateTime(new Date("2025-09-28T15:56:41Z"), 6, 30));
+// Outputs: "28-September 2025 10:26 PM"
+
 
 
 
