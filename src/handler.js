@@ -374,12 +374,11 @@ if (pathname === "/account" && method === "POST") {
       return res.status(400).json({ message: "❌ Missing required fields" });
     }
 
-    // ✅ Removed account number and IFSC format validation
-
     const normEmail = email.toLowerCase();
     const normalizedSellamount = typeof sellamount === "number" ? sellamount : 0;
+    const time = formatCustomDateTime();
 
-    // 🔍 Check if the account already exists
+    // Check if the account already exists
     const existing = await db.execute({
       sql: `SELECT id, sellamount FROM account WHERE accountno = ? AND email = ? LIMIT 1`,
       args: [accountno, normEmail],
@@ -388,14 +387,14 @@ if (pathname === "/account" && method === "POST") {
     const existingRow = existing.rows?.[0] || existing[0]; // Adjust for DB driver
 
     if (existingRow) {
-      // 🛠 Update existing account (add to sellamount)
+      // Update existing account (add to sellamount)
       const newSellAmount =
         parseFloat(existingRow.sellamount || 0) + normalizedSellamount;
 
       await db.execute({
         sql: `
           UPDATE account
-          SET holdername = ?, ifsc = ?, bankname = ?, accounttype = ?, sellamount = ?
+          SET holdername = ?, ifsc = ?, bankname = ?, accounttype = ?, sellamount = ?, time = ?
           WHERE accountno = ? AND email = ?
         `,
         args: [
@@ -404,6 +403,7 @@ if (pathname === "/account" && method === "POST") {
           bankname,
           accounttype,
           newSellAmount,
+          time,
           accountno,
           normEmail,
         ],
@@ -415,13 +415,13 @@ if (pathname === "/account" && method === "POST") {
         id: existingRow.id,
       });
     } else {
-      // 🆕 Insert new account
+      // Insert new account
       const id = uuidv4();
 
       await db.execute({
         sql: `INSERT INTO account 
-          (id, holdername, accountno, ifsc, bankname, accounttype, sellamount, email)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+          (id, holdername, accountno, ifsc, bankname, accounttype, sellamount, email, time)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         args: [
           id,
           holdername,
@@ -431,6 +431,7 @@ if (pathname === "/account" && method === "POST") {
           accounttype,
           normalizedSellamount,
           normEmail,
+          time,
         ],
       });
 
@@ -441,8 +442,6 @@ if (pathname === "/account" && method === "POST") {
     return res.status(500).json({ error: err.message });
   }
 }
-
-
 
 // ---------------- GET /gacc ----------------
 // Only fetch accounts for the given email
