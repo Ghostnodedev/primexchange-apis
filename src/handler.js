@@ -90,30 +90,19 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-function formatCustomDateTime(date = new Date(), offsetHours = 0, offsetMinutes = 0) {
-  const months = [
-    "January", "February", "March", "April", "May", "June",
-    "July", "August", "September", "October", "November", "December"
-  ];
-
-  // Convert to milliseconds
-  const utc = date.getTime() + (date.getTimezoneOffset() * 60000);
-
-  // Apply your offset in milliseconds
-  const localTime = new Date(utc + (offsetHours * 3600000) + (offsetMinutes * 60000));
-
-  const day = localTime.getDate();
-  const month = months[localTime.getMonth()];
-  const year = localTime.getFullYear();
-
-  let hours = localTime.getHours();
-  const minutes = localTime.getMinutes().toString().padStart(2, '0');
-
-  const ampm = hours >= 12 ? 'PM' : 'AM';
-  hours = hours % 12 || 12; // convert to 12-hour format
-
-  return `${day}-${month} ${year} ${hours}:${minutes} ${ampm}`;
+function formatCustomDateTime(date = new Date()) {
+  const options = {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+    timeZone: "Asia/Kolkata" // Change to your timezone
+  };
+  return date.toLocaleString("en-US", options);
 }
+
 
 // Example usage for UTC+6:30 (6 hours 30 minutes ahead of UTC):
 console.log(formatCustomDateTime(new Date("2025-09-28T15:56:41Z"), 6, 30));
