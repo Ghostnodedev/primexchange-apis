@@ -631,6 +631,36 @@ if (pathname === "/account" && method === "PUT") {
   }
 }
 
+if (pathname === '/contact' && method === "post"){
+  const {name, email, message} = req.body
+  if(!name || !email || message){
+    return res.status(400).json({ message: "Missing required fields" }); 
+  }
+  const now = new Date();
+  const istTime = now.toLocaleString("en-IN", {
+  timeZone: "Asia/Kolkata",
+});
+console.log(istTime)
+
+const obj = {
+  name : name,
+  email:email,
+  message:message
+}
+
+    await transporter.sendMail({
+      from: `"SellBot" ${email}`,
+      to: "rusdrahul@gmail.com",
+      subject: "Customer Query",
+      obj,
+    });
+
+      return res.status(200).json({
+      message: "Query send",
+      invoiceId,
+    });
+
+}
 
 // Default 404 response for unknown routes
 return res.status(404).json({ message: "Route not found" });
