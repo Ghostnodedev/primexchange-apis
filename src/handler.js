@@ -90,6 +90,26 @@ const transporter = nodemailer.createTransport({
   },
 });
 
+function formatCustomDateTime(date = new Date()) {
+  const months = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"
+  ];
+  
+  const day = date.getDate();
+  const month = months[date.getMonth()];
+  const year = date.getFullYear();
+  
+  let hours = date.getHours();
+  const minutes = date.getMinutes().toString().padStart(2, '0');
+  
+  const ampm = hours >= 12 ? 'PM' : 'AM';
+  hours = hours % 12 || 12; // convert to 12-hour format
+  
+  return `${day}-${month} ${year} ${hours}:${minutes} ${ampm}`;
+}
+
+
 const handler = async (req, res) => {
   const { method, url } = req;
   const pathname = url.split("?")[0];
@@ -448,17 +468,17 @@ if (pathname === "/profile" && method === "POST") {
     const { email, username, totalamount, depositamount, sellamount } = req.body;
     console.log("Incoming payload:", req.body);
 
+    // Validate required fields
     if (!email || !username || !totalamount || !depositamount) {
       return res.status(400).json({ message: "Missing required fields" });
     }
 
     const id = uuidv4();
-    const timestamp = formatCustomDateTime(); // 👈 Get formatted time
+    const time = formatCustomDateTime();
 
     try {
       await db.execute({
-        sql: `INSERT INTO profile 
-                (id, email, username, totalamount, depositamount, sellamount, time)
+        sql: `INSERT INTO profile (id, email, username, totalamount, depositamount, sellamount, time)
               VALUES (?, ?, ?, ?, ?, ?, ?)`,
         args: [
           id,
@@ -466,8 +486,8 @@ if (pathname === "/profile" && method === "POST") {
           username,
           totalamount,
           depositamount,
-          sellamount || 0,
-          timestamp, // 👈 Pass the formatted timestamp
+          sellamount || 0, // default to 0 if missing
+          time,
         ],
       });
 
