@@ -104,13 +104,6 @@ function formatCustomDateTime(date = new Date()) {
 }
 
 
-// Example usage for UTC+6:30 (6 hours 30 minutes ahead of UTC):
-console.log(formatCustomDateTime(new Date("2025-09-28T15:56:41Z"), 6, 30));
-// Outputs: "28-September 2025 10:26 PM"
-
-
-
-
 const handler = async (req, res) => {
   const { method, url } = req;
   const pathname = url.split("?")[0];
