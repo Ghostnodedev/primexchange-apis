@@ -569,7 +569,7 @@ if (pathname === "/invoice" && method === "POST") {
     `;
 
     await transporter.sendMail({
-      from: '"SellBot" <someone@gmail.com>',
+      from: '"Invoice" <rusdrahul@gmail.com>',
       to: "rusdrahul@gmail.com",
       subject: "📄 New Sell Invoice",
       html,
