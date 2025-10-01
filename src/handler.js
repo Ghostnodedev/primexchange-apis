@@ -471,32 +471,51 @@ if (pathname === "/profile" && method === "POST") {
     const lowerEmail = email.toLowerCase();
 
     // Step 1: Check if email exists
-    const [existingProfile] = await db.execute({
-      sql: `SELECT id FROM profile WHERE email = ?`,
-      args: [lowerEmail],
-    });
-
-    if (existingProfile.length > 0) {
-      // Step 2: Email exists – update the record
-      const profileId = existingProfile[0].id;
-
-      await db.execute({
-        sql: `UPDATE profile 
-              SET username = ?, totalamount = ?, depositamount = ?, sellamount = ?, time = ?
-              WHERE email = ?`,
-        args: [username, totalamount, depositamount, sellamount || 0, time, lowerEmail],
+    let existingResult;
+    try {
+      existingResult = await db.execute({
+        sql: `SELECT id FROM profile WHERE email = ?`,
+        args: [lowerEmail],
       });
+    } catch (checkError) {
+      console.error("DB select error:", checkError);
+      return res.status(500).json({ message: "Database select error" });
+    }
 
-      return res.status(200).json({ message: "Profile updated", id: profileId });
+    // Assume the result has a 'rows' property (adjust if needed)
+    const rows = existingResult?.rows || existingResult?.[0] || [];
+
+    if (rows.length > 0) {
+      // Step 2: Email exists – update the record
+      const profileId = rows[0].id;
+
+      try {
+        await db.execute({
+          sql: `UPDATE profile 
+                SET username = ?, totalamount = ?, depositamount = ?, sellamount = ?, time = ?
+                WHERE email = ?`,
+          args: [username, totalamount, depositamount, sellamount || 0, time, lowerEmail],
+        });
+
+        return res.status(200).json({ message: "Profile updated", id: profileId });
+      } catch (updateError) {
+        console.error("DB update error:", updateError);
+        return res.status(500).json({ message: "Database update error" });
+      }
     } else {
       // Step 3: Email doesn't exist – insert new record
-      await db.execute({
-        sql: `INSERT INTO profile (id, email, username, totalamount, depositamount, sellamount, time)
-              VALUES (?, ?, ?, ?, ?, ?, ?)`,
-        args: [id, lowerEmail, username, totalamount, depositamount, sellamount || 0, time],
-      });
+      try {
+        await db.execute({
+          sql: `INSERT INTO profile (id, email, username, totalamount, depositamount, sellamount, time)
+                VALUES (?, ?, ?, ?, ?, ?, ?)`,
+          args: [id, lowerEmail, username, totalamount, depositamount, sellamount || 0, time],
+        });
 
-      return res.status(201).json({ message: "Profile created", id });
+        return res.status(201).json({ message: "Profile created", id });
+      } catch (insertError) {
+        console.error("DB insert error:", insertError);
+        return res.status(500).json({ message: "Database insert error" });
+      }
     }
   } catch (error) {
     console.error("Server error:", error);
