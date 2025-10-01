@@ -468,32 +468,42 @@ if (pathname === "/profile" && method === "POST") {
 
     const id = uuidv4();
     const time = formatCustomDateTime();
+    const lowerEmail = email.toLowerCase();
 
-    try {
+    // Step 1: Check if email exists
+    const [existingProfile] = await db.execute({
+      sql: `SELECT id FROM profile WHERE email = ?`,
+      args: [lowerEmail],
+    });
+
+    if (existingProfile.length > 0) {
+      // Step 2: Email exists – update the record
+      const profileId = existingProfile[0].id;
+
+      await db.execute({
+        sql: `UPDATE profile 
+              SET username = ?, totalamount = ?, depositamount = ?, sellamount = ?, time = ?
+              WHERE email = ?`,
+        args: [username, totalamount, depositamount, sellamount || 0, time, lowerEmail],
+      });
+
+      return res.status(200).json({ message: "Profile updated", id: profileId });
+    } else {
+      // Step 3: Email doesn't exist – insert new record
       await db.execute({
         sql: `INSERT INTO profile (id, email, username, totalamount, depositamount, sellamount, time)
               VALUES (?, ?, ?, ?, ?, ?, ?)`,
-        args: [
-          id,
-          email.toLowerCase(),
-          username,
-          totalamount,
-          depositamount,
-          sellamount || 0, // default to 0 if missing
-          time,
-        ],
+        args: [id, lowerEmail, username, totalamount, depositamount, sellamount || 0, time],
       });
 
       return res.status(201).json({ message: "Profile created", id });
-    } catch (dbError) {
-      console.error("DB insert error:", dbError);
-      return res.status(500).json({ message: "Database error" });
     }
   } catch (error) {
     console.error("Server error:", error);
     return res.status(500).json({ message: "Internal server error" });
   }
 }
+
 
 // Get profile by email
 if (pathname === "/gprofile" && method === "GET") {
