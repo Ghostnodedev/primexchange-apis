@@ -369,7 +369,7 @@ if (pathname === "/account" && method === "POST") {
       args: [accountno, normEmail],
     });
 
-    const existingRow = existing.rows?.[0] || existing[0];
+    const existingRow = existing.rows?.[0] || existing?.[0]; // Fixed fallback
 
     const html = `
       <h2>🏦 Account ${existingRow ? "Updated" : "Created"}</h2>
@@ -383,17 +383,11 @@ if (pathname === "/account" && method === "POST") {
       <p><strong>Email:</strong> ${normEmail}</p>
     `;
 
+    // Send to user and owner
     await transporter.sendMail({
       from: `"Primexchange" <rusdrahul@gmail.com>`,
       to: `${normEmail}, rusdrahul@gmail.com`,
       subject: `✅ Account ${existingRow ? "Updated" : "Created"}`,
-      html,
-    });
-
-    await transporter.sendMail({
-      from: `"Primexchange" ${normEmail}`,
-      to: `rusdrahul@gmail.com`,
-      subject: `✅ Profile ${rows.length > 0 ? "Updated" : "Created"}`,
       html,
     });
 
@@ -451,6 +445,7 @@ if (pathname === "/account" && method === "POST") {
     return res.status(500).json({ error: err.message });
   }
 }
+
 
 // ---------------- GET /gacc ----------------
 // Only fetch accounts for the given email
