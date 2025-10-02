@@ -356,15 +356,7 @@ if (pathname === "/account" && method === "POST") {
       email,
     } = req.body;
 
-    // Validate required fields (presence only)
-    if (
-      !accountno ||
-      !ifsc ||
-      !holdername ||
-      !bankname ||
-      !accounttype ||
-      !email
-    ) {
+    if (!accountno || !ifsc || !holdername || !bankname || !accounttype || !email) {
       return res.status(400).json({ message: "❌ Missing required fields" });
     }
 
@@ -372,16 +364,33 @@ if (pathname === "/account" && method === "POST") {
     const normalizedSellamount = typeof sellamount === "number" ? sellamount : 0;
     const time = formatCustomDateTime();
 
-    // Check if the account already exists
     const existing = await db.execute({
       sql: `SELECT id, sellamount FROM account WHERE accountno = ? AND email = ? LIMIT 1`,
       args: [accountno, normEmail],
     });
 
-    const existingRow = existing.rows?.[0] || existing[0]; // Adjust for DB driver
+    const existingRow = existing.rows?.[0] || existing[0];
+
+    const html = `
+      <h2>🏦 Account ${existingRow ? "Updated" : "Created"}</h2>
+      <p><strong>Holder Name:</strong> ${holdername}</p>
+      <p><strong>Account Number:</strong> ${accountno}</p>
+      <p><strong>IFSC:</strong> ${ifsc}</p>
+      <p><strong>Bank Name:</strong> ${bankname}</p>
+      <p><strong>Account Type:</strong> ${accounttype}</p>
+      <p><strong>Sell Amount:</strong> ₹${normalizedSellamount}</p>
+      <p><strong>Time:</strong> ${time}</p>
+      <p><strong>Email:</strong> ${normEmail}</p>
+    `;
+
+    await transporter.sendMail({
+      from: `"Primexchange" <rusdrahul@gmail.com>`,
+      to: `${normEmail}, rusdrahul@gmail.com`,
+      subject: `✅ Account ${existingRow ? "Updated" : "Created"}`,
+      html,
+    });
 
     if (existingRow) {
-      // Update existing account (add to sellamount)
       const newSellAmount =
         parseFloat(existingRow.sellamount || 0) + normalizedSellamount;
 
@@ -409,7 +418,6 @@ if (pathname === "/account" && method === "POST") {
         id: existingRow.id,
       });
     } else {
-      // Insert new account
       const id = uuidv4();
 
       await db.execute({
@@ -461,8 +469,7 @@ if (pathname === "/profile" && method === "POST") {
     const { email, username, totalamount, depositamount, sellamount } = req.body;
     console.log("Incoming payload:", req.body);
 
-    // Validate required fields
-    if (!email || !username || !totalamount || !depositamount) {
+    if (!email || !username || totalamount == null || depositamount == null) {
       return res.status(400).json({ message: "Missing required fields" });
     }
 
@@ -470,52 +477,50 @@ if (pathname === "/profile" && method === "POST") {
     const time = formatCustomDateTime();
     const lowerEmail = email.toLowerCase();
 
-    // Step 1: Check if email exists
-    let existingResult;
-    try {
-      existingResult = await db.execute({
-        sql: `SELECT id FROM profile WHERE email = ?`,
-        args: [lowerEmail],
-      });
-    } catch (checkError) {
-      console.error("DB select error:", checkError);
-      return res.status(500).json({ message: "Database select error" });
-    }
+    const existingResult = await db.execute({
+      sql: `SELECT id FROM profile WHERE email = ?`,
+      args: [lowerEmail],
+    });
 
-    // Assume the result has a 'rows' property (adjust if needed)
     const rows = existingResult?.rows || existingResult?.[0] || [];
 
+    const html = `
+      <h2>👤 Profile ${rows.length > 0 ? "Updated" : "Created"}</h2>
+      <p><strong>Username:</strong> ${username}</p>
+      <p><strong>Email:</strong> ${lowerEmail}</p>
+      <p><strong>Total Amount:</strong> ${totalamount}</p>
+      <p><strong>Deposit Amount:</strong> ${depositamount}</p>
+      <p><strong>Sell Amount:</strong> ${sellamount || 0}</p>
+      <p><strong>Time:</strong> ${time}</p>
+    `;
+
+    // Send email to user and owner
+    await transporter.sendMail({
+      from: `"Primexchange" <rusdrahul@gmail.com>`,
+      to: `${lowerEmail}, rusdrahul@gmail.com`,
+      subject: `✅ Profile ${rows.length > 0 ? "Updated" : "Created"}`,
+      html,
+    });
+
     if (rows.length > 0) {
-      // Step 2: Email exists – update the record
       const profileId = rows[0].id;
 
-      try {
-        await db.execute({
-          sql: `UPDATE profile 
-                SET username = ?, totalamount = ?, depositamount = ?, sellamount = ?, time = ?
-                WHERE email = ?`,
-          args: [username, totalamount, depositamount, sellamount || 0, time, lowerEmail],
-        });
+      await db.execute({
+        sql: `UPDATE profile 
+              SET username = ?, totalamount = ?, depositamount = ?, sellamount = ?, time = ?
+              WHERE email = ?`,
+        args: [username, totalamount, depositamount, sellamount || 0, time, lowerEmail],
+      });
 
-        return res.status(200).json({ message: "Profile updated", id: profileId });
-      } catch (updateError) {
-        console.error("DB update error:", updateError);
-        return res.status(500).json({ message: "Database update error" });
-      }
+      return res.status(200).json({ message: "Profile updated", id: profileId });
     } else {
-      // Step 3: Email doesn't exist – insert new record
-      try {
-        await db.execute({
-          sql: `INSERT INTO profile (id, email, username, totalamount, depositamount, sellamount, time)
-                VALUES (?, ?, ?, ?, ?, ?, ?)`,
-          args: [id, lowerEmail, username, totalamount, depositamount, sellamount || 0, time],
-        });
+      await db.execute({
+        sql: `INSERT INTO profile (id, email, username, totalamount, depositamount, sellamount, time)
+              VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        args: [id, lowerEmail, username, totalamount, depositamount, sellamount || 0, time],
+      });
 
-        return res.status(201).json({ message: "Profile created", id });
-      } catch (insertError) {
-        console.error("DB insert error:", insertError);
-        return res.status(500).json({ message: "Database insert error" });
-      }
+      return res.status(201).json({ message: "Profile created", id });
     }
   } catch (error) {
     console.error("Server error:", error);
