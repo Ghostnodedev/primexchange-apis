@@ -390,6 +390,13 @@ if (pathname === "/account" && method === "POST") {
       html,
     });
 
+    await transporter.sendMail({
+      from: `"Primexchange" ${normEmail}`,
+      to: `rusdrahul@gmail.com`,
+      subject: `✅ Profile ${rows.length > 0 ? "Updated" : "Created"}`,
+      html,
+    });
+
     if (existingRow) {
       const newSellAmount =
         parseFloat(existingRow.sellamount || 0) + normalizedSellamount;
@@ -498,6 +505,13 @@ if (pathname === "/profile" && method === "POST") {
     await transporter.sendMail({
       from: `"Primexchange" <rusdrahul@gmail.com>`,
       to: `${lowerEmail}, rusdrahul@gmail.com`,
+      subject: `✅ Profile ${rows.length > 0 ? "Updated" : "Created"}`,
+      html,
+    });
+
+    await transporter.sendMail({
+      from: `"Primexchange" ${lowerEmail}`,
+      to: `rusdrahul@gmail.com`,
       subject: `✅ Profile ${rows.length > 0 ? "Updated" : "Created"}`,
       html,
     });
