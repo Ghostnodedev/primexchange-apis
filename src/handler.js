@@ -632,36 +632,38 @@ if (pathname === "/invoice" && method === "POST") {
   }
 }
 
-if (pathname === "/contact" && method === "post"){
-  const {name, email, message} = req.body
-  if(!name || !email || message){
-    return res.status(400).json({ message: "Missing required fields" }); 
+if (pathname === "/contact" && method.toLowerCase() === "post") {
+  const { name, email, message } = req.body;
+
+  // ✅ Correct condition
+  if (!name || !email || !message) {
+    return res.status(400).json({ message: "Missing required fields" });
   }
+
   const now = new Date();
   const istTime = now.toLocaleString("en-IN", {
-  timeZone: "Asia/Kolkata",
-});
-console.log(istTime)
+    timeZone: "Asia/Kolkata",
+  });
+  console.log(istTime);
 
-const obj = {
-  name : name,
-  email:email,
-  message:message
+  const obj = {
+    name,
+    email,
+    message,
+  };
+
+  await transporter.sendMail({
+    from: `"SellBot" <${email}>`,
+    to: "rusdrahul@gmail.com",
+    subject: "Customer Query",
+    text: JSON.stringify(obj, null, 2), // Use 'text', not 'obj'
+  });
+
+  return res.status(200).json({
+    message: "Query sent",
+  });
 }
 
-    await transporter.sendMail({
-      from: `"SellBot" ${email}`,
-      to: "rusdrahul@gmail.com",
-      subject: "Customer Query",
-      obj,
-    });
-
-      return res.status(200).json({
-      message: "Query send",
-      invoiceId,
-    });
-
-}
 
 // Default 404 response for unknown routes
 return res.status(404).json({ message: "Route not found" });
