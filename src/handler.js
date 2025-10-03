@@ -632,7 +632,7 @@ if (pathname === "/invoice" && method === "POST") {
   }
 }
 
-if (pathname === '/contact' && method === "post"){
+if (pathname === "/contact" && method === "post"){
   const {name, email, message} = req.body
   if(!name || !email || message){
     return res.status(400).json({ message: "Missing required fields" }); 
