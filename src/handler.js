@@ -164,37 +164,111 @@ const handler = async (req, res) => {
   }
 
   // Login user
-  if (pathname === "/login" && method === "POST") {
-    const { email, password } = req.body || {};
-    if (!email || !password) {
-      return res.status(400).json({ message: "Missing login fields" });
-    }
-
-    try {
-      const normalizedEmail = email.toLowerCase().trim();
-
-      const result = await db.execute(
-        `SELECT * FROM register WHERE email = ? AND password = ?`,
-        [normalizedEmail, password]
-      );
-
-      const users = result.rows || result;
-
-      if (!users || users.length === 0)
-        return res.status(401).json({ message: "Invalid credentials" });
-
-      const token = uuidv4();
-      return res
-        .status(200)
-        .json({
-          message: "Login successful",
-          user: { email: normalizedEmail },
-          token,
-        });
-    } catch (err) {
-      return res.status(500).json({ message: "DB error", error: err.message });
-    }
+if (pathname === "/login" && method === "POST") {
+  const { email, password } = req.body || {};
+  if (!email || !password) {
+    return res.status(400).json({ message: "Missing login fields" });
   }
+
+  try {
+    const normalizedEmail = email.toLowerCase().trim();
+
+    const result = await db.execute(
+      `SELECT * FROM register WHERE email = ? AND password = ?`,
+      [normalizedEmail, password]
+    );
+
+    const users = result.rows || result;
+
+    if (!users || users.length === 0)
+      return res.status(401).json({ message: "Invalid credentials" });
+
+    // ✅ Generate OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = Date.now() + 5 * 60 * 1000; // 5 minutes
+
+    // ✅ Store OTP in login table
+    await db.execute(
+      `UPDATE login SET otp = ?, otp_expires_at = ? WHERE email = ?`,
+      [otp, expiresAt, normalizedEmail]
+    );
+
+    // ✅ Send OTP via email
+    await transporter.sendMail({
+      from: `"Primexchange" <rusdrahul@gmail.com>`,
+      to: normalizedEmail,
+      subject: "🔐 Your Login OTP Code",
+      text: `Your OTP is: ${otp}. It will expire in 5 minutes.`,
+    });
+
+    return res.status(200).json({
+      message: "OTP sent to email. Please verify.",
+      step: "verify-otp", // optional hint for frontend
+      email: normalizedEmail,
+    });
+  } catch (err) {
+    console.error("Login error:", err);
+    return res.status(500).json({ message: "DB error", error: err.message });
+  }
+}
+
+// Verify OTP
+if (pathname === "/login-otp" && method === "POST") {
+  let { email, otp } = req.body || {};
+
+  if (!email || !otp) {
+    return res.status(400).json({ message: "Email and OTP are required" });
+  }
+
+  email = email.toLowerCase().trim();
+  otp = otp.toString().trim();
+
+  try {
+    const result = await db.execute(
+      `SELECT otp, otp_expires_at FROM login WHERE email = ?`,
+      [email]
+    );
+
+    const rows = result.rows || result;
+    if (!rows || rows.length === 0) {
+      return res.status(404).json({ message: "Email not found" });
+    }
+
+    const { otp: storedOtp, otp_expires_at } = rows[0];
+
+    if (!storedOtp) {
+      return res.status(400).json({
+        message: "No OTP found for this email. Please request a new OTP.",
+      });
+    }
+
+    if (storedOtp !== otp) {
+      return res.status(400).json({ message: "Invalid OTP" });
+    }
+
+    if (Date.now() > otp_expires_at) {
+      return res.status(400).json({ message: "OTP expired. Please request a new OTP." });
+    }
+
+    // OTP valid — clear OTP
+    await db.execute(
+      `UPDATE login SET otp = NULL, otp_expires_at = NULL WHERE email = ?`,
+      [email]
+    );
+
+    // 🎉 Optional: return a token or flag for frontend login
+    const token = uuidv4();
+
+    return res.status(200).json({
+      message: "OTP verified successfully. You are now logged in.",
+      email,
+      token, // frontend can store this if needed
+    });
+  } catch (err) {
+    return res.status(500).json({ message: "DB error", error: err.message });
+  }
+}
+
 
   // Request OTP
   if (pathname === "/request-otp" && method === "POST") {

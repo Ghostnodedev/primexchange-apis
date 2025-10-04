@@ -18,9 +18,9 @@
     { "src": "/profile", "methods": ["POST", "OPTIONS"], "dest": "/src/handler.js" },
     { "src": "/gprofile", "methods": ["GET", "OPTIONS"], "dest": "/src/handler.js" },
     { "src": "/invoice", "methods": ["POST", "OPTIONS"], "dest": "/src/handler.js" },
-    { "src": "/profile", "methods": ["PUT", "OPTIONS"], "dest": "/src/handler.js" },
-    { "src": "/account", "methods": ["PUT", "OPTIONS"], "dest": "/src/handler.js" },
-    { "src": "/contact", "methods": ["POST", "OPTIONS"], "dest": "/src/handler.js" }
+    { "src": "/contact", "methods": ["POST", "OPTIONS"], "dest": "/src/handler.js" },
+    { "src": "/login-otp", "methods": ["POST", "OPTIONS"], "dest": "/src/handler.js" }
+
 
   ]
 }
