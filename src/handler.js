@@ -163,6 +163,19 @@ const handler = async (req, res) => {
     }
   }
 
+  if(pathname === "/getregister" && method === "GET") {
+    try {
+      const result = await db.execute(
+        `SELECT * FROM register`
+      );
+
+      const users = result.rows || result;
+      res.status(200).json({ data: users });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  }
+
   // Login user
 if (pathname === "/login" && method === "POST") {
   const { email, password } = req.body || {};
