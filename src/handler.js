@@ -565,6 +565,23 @@ if (pathname === "/gacc" && method === "GET") {
   return;
 }
 
+if (pathname === "/gaccnt" && method === "GET") {
+  try {
+    const email = req.query.email; // frontend must send ?email=user@example.com
+    if (!email) return res.status(400).json({ message: "Missing email" });
+
+    const result = await db.execute(
+      `SELECT * FROM account`,
+      [email.toLowerCase()]
+    );
+
+    res.status(200).json({ data: result.rows || result });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+  return;
+}
+
 if (pathname === "/profile" && method === "POST") {
   try {
     const { email, username, totalamount, depositamount, sellamount } = req.body;
@@ -659,7 +676,26 @@ if (pathname === "/gprofile" && method === "GET") {
   }
 }
 
+if (pathname === "/gprf" && method === "GET") {
+  try {
+    const email = req.query?.email;
+    console.log("Email query param:", email);
 
+    if (!email) {
+      return res.status(400).json({ message: "Missing email" });
+    }
+
+    const result = await db.execute(
+      `SELECT * FROM profile`,
+      [email.toLowerCase()]
+    );
+
+    return res.status(200).json({ data: result.rows || result });
+  } catch (error) {
+    console.error("DB fetch error:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+}
 
 if (pathname === "/invoice" && method === "POST") {
   try {
