@@ -569,7 +569,6 @@ if (pathname === "/gaccnt" && method === "GET") {
   try {
     const result = await db.execute(
       `SELECT * FROM account`,
-      [email.toLowerCase()]
     );
 
     res.status(200).json({ data: result.rows || result });
@@ -677,7 +676,6 @@ if (pathname === "/gprf" && method === "GET") {
   try {
     const result = await db.execute(
       `SELECT * FROM profile`,
-      [email.toLowerCase()]
     );
 
     return res.status(200).json({ data: result.rows || result });
