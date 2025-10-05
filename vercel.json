@@ -19,7 +19,9 @@
     { "src": "/gprofile", "methods": ["GET", "OPTIONS"], "dest": "/src/handler.js" },
     { "src": "/invoice", "methods": ["POST", "OPTIONS"], "dest": "/src/handler.js" },
     { "src": "/contact", "methods": ["POST", "OPTIONS"], "dest": "/src/handler.js" },
-    { "src": "/login-otp", "methods": ["POST", "OPTIONS"], "dest": "/src/handler.js" }
+    { "src": "/login-otp", "methods": ["POST", "OPTIONS"], "dest": "/src/handler.js" },
+    { "src": "/getlogin", "methods": ["GET", "OPTIONS"], "dest": "/src/handler.js" }
+
 
 
   ]

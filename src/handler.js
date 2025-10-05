@@ -417,6 +417,18 @@ if (pathname === "/login-otp" && method === "POST") {
     }
   }
 
+if (pathname === "/getlogin" && method === "GET") {
+  try {
+    const result = await db.execute(
+      `SELECT * FROM login`,
+    );
+    res.status(200).json({ data: result.rows || result });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+  return;
+}
+
 
 if (pathname === "/account" && method === "POST") {
   try {
