@@ -567,9 +567,6 @@ if (pathname === "/gacc" && method === "GET") {
 
 if (pathname === "/gaccnt" && method === "GET") {
   try {
-    const email = req.query.email; // frontend must send ?email=user@example.com
-    if (!email) return res.status(400).json({ message: "Missing email" });
-
     const result = await db.execute(
       `SELECT * FROM account`,
       [email.toLowerCase()]
@@ -678,13 +675,6 @@ if (pathname === "/gprofile" && method === "GET") {
 
 if (pathname === "/gprf" && method === "GET") {
   try {
-    const email = req.query?.email;
-    console.log("Email query param:", email);
-
-    if (!email) {
-      return res.status(400).json({ message: "Missing email" });
-    }
-
     const result = await db.execute(
       `SELECT * FROM profile`,
       [email.toLowerCase()]
