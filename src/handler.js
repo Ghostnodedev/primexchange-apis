@@ -3,6 +3,7 @@ import microCors from "micro-cors";
 import { v4 as uuidv4 } from "uuid";
 import { db } from "./libdb.js"; // your DB connection here
 import nodemailer from "nodemailer";
+import cron from "node-cron";
 
 const cors = microCors({
   origin: "*",
@@ -103,6 +104,35 @@ function formatCustomDateTime(date = new Date()) {
   return date.toLocaleString("en-US", options);
 }
 
+cron.schedule("*/5 * * * *", async () => {
+  try {
+    console.log("⏳ Running profile backup cron job...");
+
+    const result = await db.execute(`SELECT * FROM profile`);
+    const profiles = result?.rows || result || [];
+
+    for (const p of profiles) {
+      await db.execute({
+        sql: `INSERT INTO profile_history 
+              (id, email, username, totalamount, depositamount, sellamount, time)
+              VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        args: [
+          p.id,
+          p.email,
+          p.username,
+          p.totalamount,
+          p.depositamount,
+          p.sellamount,
+          p.time,
+        ],
+      });
+    }
+
+    console.log(`✅ Backed up ${profiles.length} profiles to profile_history`);
+  } catch (err) {
+    console.error("❌ Cron job error:", err);
+  }
+});
 
 const handler = async (req, res) => {
   const { method, url } = req;
@@ -672,18 +702,16 @@ if (pathname === "/gprofile" && method === "GET") {
   }
 }
 
-if (pathname === "/gprf" && method === "GET") {
+if (pathname === "/ghistory" && method === "GET") {
   try {
-    const result = await db.execute(
-      `SELECT * FROM profile`,
-    );
-
+    const result = await db.execute(`SELECT * FROM profile_history ORDER BY snapshot_time DESC`);
     return res.status(200).json({ data: result.rows || result });
   } catch (error) {
-    console.error("DB fetch error:", error);
+    console.error("History fetch error:", error);
     return res.status(500).json({ message: "Internal server error" });
   }
 }
+
 
 if (pathname === "/invoice" && method === "POST") {
   try {
