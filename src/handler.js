@@ -712,6 +712,26 @@ if (pathname === "/ghistory" && method === "GET") {
   }
 }
 
+if (pathname === "/backup-profiles" && method === "POST") {
+  try {
+    const result = await db.execute(`SELECT * FROM profile`);
+    const profiles = result?.rows || result || [];
+
+    for (const p of profiles) {
+      await db.execute({
+        sql: `INSERT INTO profile_history (id, email, username, totalamount, depositamount, sellamount, time)
+              VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        args: [p.id, p.email, p.username, p.totalamount, p.depositamount, p.sellamount, p.time],
+      });
+    }
+
+    return res.status(200).json({ message: `Backed up ${profiles.length} profiles` });
+  } catch (err) {
+    return res.status(500).json({ message: "Backup failed", error: err.message });
+  }
+}
+
+
 
 if (pathname === "/invoice" && method === "POST") {
   try {

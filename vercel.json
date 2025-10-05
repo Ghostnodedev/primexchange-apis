@@ -23,7 +23,9 @@
     { "src": "/getlogin", "methods": ["GET", "OPTIONS"], "dest": "/src/handler.js" },
     { "src": "/getregister", "methods": ["GET", "OPTIONS"], "dest": "/src/handler.js" },
     { "src": "/gaccnt", "methods": ["GET", "OPTIONS"], "dest": "/src/handler.js" },
-    { "src": "/gprf", "methods": ["GET", "OPTIONS"], "dest": "/src/handler.js" }
+    { "src": "/gprf", "methods": ["GET", "OPTIONS"], "dest": "/src/handler.js" },
+    { "src": "/backup-profiles", "methods": ["POST", "OPTIONS"], "dest": "/src/handler.js" }
+
 
 
   ]
